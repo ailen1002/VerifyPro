@@ -1,0 +1,15 @@
+﻿<Window
+    Title="CommConfigView"
+    WindowStartupLocation="CenterScreen"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d"
+    x:Class="VerifyPro.Views.CommConfigView"
+    x:DataType="viewModels:MainWindowViewModel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="clr-namespace:VerifyPro.ViewModels"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    Welcome to Avalonia!
+</Window>

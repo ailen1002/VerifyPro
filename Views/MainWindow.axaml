@@ -1,6 +1,7 @@
 <Window
     Icon="/Assets/avalonia-logo.ico"
     Title="VerifyPro"
+    WindowStartupLocation="CenterScreen"
     d:DesignHeight="600"
     d:DesignWidth="900"
     mc:Ignorable="d"

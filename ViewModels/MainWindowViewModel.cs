@@ -1,7 +1,10 @@
-﻿namespace VerifyPro.ViewModels;
-using ReactiveUI;
-using System.Reactive;
+﻿using Avalonia.Controls;
 using System;
+using System.Reactive;
+using ReactiveUI;
+using VerifyPro.Views;
+
+namespace VerifyPro.ViewModels;
 
 public class MainWindowViewModel : ReactiveObject
 {
@@ -11,10 +14,15 @@ public class MainWindowViewModel : ReactiveObject
     {
         NavigateCommand = ReactiveCommand.Create<string>(NavigateTo);
     }
-
-    private void NavigateTo(string page)
+    public void NavigateTo(string page)
     {
         Console.WriteLine($"导航到页面: {page}");
-        // 这里可以添加切换页面的逻辑，例如在 MainWindow 中替换 Content
+
+        Window windowToOpen = page switch
+        {
+            "CommConfig" => new CommConfigView(),
+        };
+
+        windowToOpen?.Show();
     }
 }
