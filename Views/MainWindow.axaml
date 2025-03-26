@@ -1,20 +1,119 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:VerifyPro.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="VerifyPro.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="VerifyPro">
+<Window
+    Icon="/Assets/avalonia-logo.ico"
+    Title="VerifyPro"
+    d:DesignHeight="600"
+    d:DesignWidth="900"
+    mc:Ignorable="d"
+    x:Class="VerifyPro.Views.MainWindow"
+    x:DataType="vm:MainWindowViewModel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:VerifyPro.ViewModels"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
+        <!--
+            This only sets the DataContext for the previewer in an IDE,
+            to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs)
+        -->
+        <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Grid>
+        <!--  背景图片  -->
+        <Image Source="\Assets\background.jpg" Stretch="UniformToFill" />
+
+        <!--  半透明背景层，增强对比度  -->
+        <Border Background="#AAFFFFFF" />
+
+        <!--  按钮布局  -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <UniformGrid
+                Columns="3"
+                HorizontalAlignment="Center"
+                Rows="2"
+                VerticalAlignment="Center">
+                <Button
+                    Background="Blue"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="CommConfig"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock Text="通讯配置" />
+                    </Viewbox>
+                </Button>
+                <Button
+                    Background="Blue"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="TestModel"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock FontSize="36" Text="测试机种" />
+                    </Viewbox>
+                </Button>
+                <Button
+                    Background="Blue"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="ConfigFile"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock FontSize="36" Text="配置文件" />
+                    </Viewbox>
+                </Button>
+                <Button
+                    Background="Blue"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="SelfCheck"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock FontSize="36" Text="设备自检" />
+                    </Viewbox>
+                </Button>
+                <Button
+                    Background="Blue"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="Calibration"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock FontSize="36" Text="设备校准" />
+                    </Viewbox>
+                </Button>
+                <Button
+                    Background="Green"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="Finish"
+                    Foreground="White"
+                    Margin="20"
+                    MinHeight="150"
+                    MinWidth="150"
+                    Padding="20">
+                    <Viewbox Height="200" Width="200">
+                        <TextBlock FontSize="36" Text="完成配置" />
+                    </Viewbox>
+                </Button>
+            </UniformGrid>
+        </StackPanel>
+    </Grid>
 
 </Window>
