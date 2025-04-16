@@ -1,4 +1,5 @@
 ﻿<Window
+    Background="LightGray"
     Title="CommConfigView"
     WindowStartupLocation="CenterScreen"
     d:DesignHeight="450"
@@ -11,5 +12,315 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:VerifyPro.ViewModels"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    Welcome to Avalonia!
+    <Grid
+        ColumnDefinitions="Auto,Auto,*"
+        Margin="10"
+        RowDefinitions="Auto,Auto,Auto,*">
+        <!--  串口1配置  -->
+        <Border
+            Background="#FF2C3E50"
+            CornerRadius="8"
+            Grid.Column="0"
+            Grid.Row="0"
+            Margin="10"
+            Padding="50,10,50,10">
+            <StackPanel
+                HorizontalAlignment="Center"
+                Spacing="10"
+                VerticalAlignment="Center">
+                <!--  串口号  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="串口号:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="COM1" />
+                        <ComboBoxItem Content="COM2" />
+                        <ComboBoxItem Content="COM3" />
+                    </ComboBox>
+                </Grid>
+                <!--  波特率  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="波特率:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="9600" />
+                        <ComboBoxItem Content="19200" />
+                        <ComboBoxItem Content="38400" />
+                    </ComboBox>
+                </Grid>
+                <!--  数据位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="数据位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="7" />
+                        <ComboBoxItem Content="8" />
+                    </ComboBox>
+                </Grid>
+                <!--  校验位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="校验位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="None" />
+                        <ComboBoxItem Content="Even" />
+                        <ComboBoxItem Content="Odd" />
+                    </ComboBox>
+                </Grid>
+                <!--  停止位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="停止位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="1" />
+                        <ComboBoxItem Content="2" />
+                    </ComboBox>
+                </Grid>
+                <!--  连接按钮和状态指示灯  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <Ellipse
+                        Fill="Gray"
+                        Grid.Column="0"
+                        Height="16"
+                        VerticalAlignment="Center"
+                        Width="16" />
+                    <Button
+                        Background="#FFDC7633"
+                        Content="连接"
+                        Foreground="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <!--  串口2配置  -->
+        <Border
+            Background="#FF2C3E50"
+            CornerRadius="8"
+            Grid.Column="1"
+            Grid.Row="0"
+            Margin="10"
+            Padding="50,10,50,10">
+            <StackPanel
+                HorizontalAlignment="Center"
+                Spacing="10"
+                VerticalAlignment="Center">
+                <!--  串口号  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="串口号:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="COM1" />
+                        <ComboBoxItem Content="COM2" />
+                        <ComboBoxItem Content="COM3" />
+                    </ComboBox>
+                </Grid>
+                <!--  波特率  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="波特率:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="9600" />
+                        <ComboBoxItem Content="19200" />
+                        <ComboBoxItem Content="38400" />
+                    </ComboBox>
+                </Grid>
+                <!--  数据位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="数据位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="7" />
+                        <ComboBoxItem Content="8" />
+                    </ComboBox>
+                </Grid>
+                <!--  校验位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="校验位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="None" />
+                        <ComboBoxItem Content="Even" />
+                        <ComboBoxItem Content="Odd" />
+                    </ComboBox>
+                </Grid>
+                <!--  停止位  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="停止位:"
+                        VerticalAlignment="Center" />
+                    <ComboBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectedIndex="0"
+                        VerticalAlignment="Center">
+                        <ComboBoxItem Content="1" />
+                        <ComboBoxItem Content="2" />
+                    </ComboBox>
+                </Grid>
+                <!--  连接按钮和状态指示灯  -->
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <Ellipse
+                        Fill="Gray"
+                        Grid.Column="0"
+                        Height="16"
+                        VerticalAlignment="Center"
+                        Width="16" />
+                    <Button
+                        Background="#FFDC7633"
+                        Content="连接"
+                        Foreground="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <!--  网络通讯配置  -->
+        <Border
+            Background="#FF2C3E50"
+            CornerRadius="8"
+            Grid.Column="0"
+            Grid.Row="1"
+            Margin="10"
+            Padding="50,10,50,10">
+            <StackPanel
+                HorizontalAlignment="Center"
+                Spacing="10"
+                VerticalAlignment="Center">
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="IP 地址:" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        Text="请输入" />
+                </Grid>
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Text="PORT 端口:" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        Text="请输入" />
+                </Grid>
+                <Grid ColumnDefinitions="100,*" Width="300">
+                    <Ellipse
+                        Fill="Gray"
+                        Grid.Column="0"
+                        Height="16"
+                        Margin="10,0"
+                        Width="16" />
+                    <Button
+                        Background="#FFDC7633"
+                        Content="连接"
+                        Foreground="White"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <!--  完成按钮  -->
+        <Button
+            Background="RoyalBlue"
+            Content="完成"
+            Foreground="White"
+            Grid.Column="0"
+            Grid.Row="3"
+            HorizontalAlignment="Right"
+            Margin="10"
+            Width="80" />
+    </Grid>
 </Window>
