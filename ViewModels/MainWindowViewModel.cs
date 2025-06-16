@@ -14,13 +14,20 @@ public class MainWindowViewModel : ReactiveObject
     {
         NavigateCommand = ReactiveCommand.Create<string>(NavigateTo);
     }
-    public void NavigateTo(string page)
+
+    private static void NavigateTo(string page)
     {
         Console.WriteLine($"导航到页面: {page}");
 
         Window windowToOpen = page switch
         {
             "CommConfig" => new CommConfigView(),
+            "TestControllerType" => new TestControllerTypeView(),
+            "ConfigFile" => new ConfigFileView(),
+            "SelfCheck" => new SelfCheckView(),
+            "Calibration" => new CalibrationView(),
+            "Finish" => new MainTestView(),
+            _ => throw new ArgumentOutOfRangeException(nameof(page), page, null)
         };
 
         windowToOpen?.Show();

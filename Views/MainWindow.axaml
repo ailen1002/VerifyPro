@@ -51,7 +51,7 @@
                 <Button
                     Background="Blue"
                     Command="{Binding NavigateCommand}"
-                    CommandParameter="TestModel"
+                    CommandParameter="TestControllerType"
                     Foreground="White"
                     Margin="20"
                     MinHeight="150"
