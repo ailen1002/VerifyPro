@@ -336,6 +336,7 @@
         <!--  完成按钮  -->
         <Button
             Background="RoyalBlue"
+            Click="Close"
             Content="完成"
             Foreground="White"
             Grid.Column="1"
