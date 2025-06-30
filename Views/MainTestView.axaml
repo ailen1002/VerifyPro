@@ -133,6 +133,7 @@
                 <Grid ColumnDefinitions="*" RowDefinitions="*,*">
                     <Button
                         Background="#FF8C00"
+                        Command="{Binding StartTestCommand}"
                         Grid.Row="0"
                         HorizontalAlignment="Stretch"
                         Margin="20,10,20,10"
@@ -141,6 +142,7 @@
                     </Button>
                     <Button
                         Background="#FF8C00"
+                        Command="{Binding ExportResultCommand}"
                         Grid.Row="1"
                         HorizontalAlignment="Stretch"
                         Margin="20,10,20,10"
@@ -160,6 +162,7 @@
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
                 <Button
                     Background="#FF8C00"
+                    Command="{Binding VoltageTestCommand}"
                     Grid.Column="0"
                     HorizontalAlignment="Stretch"
                     Margin="20,10,10,10"
