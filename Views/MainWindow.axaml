@@ -36,7 +36,7 @@
                 Rows="2"
                 VerticalAlignment="Center">
                 <Button
-                    Background="Blue"
+                    Background="#4169E1"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="CommConfig"
                     Foreground="White"
@@ -49,7 +49,7 @@
                     </Viewbox>
                 </Button>
                 <Button
-                    Background="Blue"
+                    Background="#4169E1"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="TestControllerType"
                     Foreground="White"
@@ -62,7 +62,7 @@
                     </Viewbox>
                 </Button>
                 <Button
-                    Background="Blue"
+                    Background="#4169E1"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="ConfigFile"
                     Foreground="White"
@@ -75,7 +75,7 @@
                     </Viewbox>
                 </Button>
                 <Button
-                    Background="Blue"
+                    Background="#4169E1"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="SelfCheck"
                     Foreground="White"
@@ -88,7 +88,7 @@
                     </Viewbox>
                 </Button>
                 <Button
-                    Background="Blue"
+                    Background="#4169E1"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="Calibration"
                     Foreground="White"
