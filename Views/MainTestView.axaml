@@ -1,12 +1,253 @@
 ﻿<Window
     Title="MainTestView"
+    WindowStartupLocation="CenterScreen"
     d:DesignHeight="450"
     d:DesignWidth="800"
     mc:Ignorable="d"
     x:Class="VerifyPro.Views.MainTestView"
+    x:DataType="viewModels:MainTestViewModel"
     xmlns="https://github.com/avaloniaui"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="clr-namespace:VerifyPro.ViewModels"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    MainTestView
+    <Grid
+        ColumnDefinitions="*,*,*,*,*,*,*,*,*,*"
+        Margin="10"
+        RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="0"
+            Grid.ColumnSpan="10"
+            Grid.Row="0"
+            Margin="5,0,5,5">
+            <StackPanel>
+                <TextBlock
+                    FontSize="24"
+                    Foreground="White"
+                    HorizontalAlignment="Left"
+                    Padding="20,5,5,5"
+                    Text="测试机种名称"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="0"
+            Grid.ColumnSpan="5"
+            Grid.Row="1"
+            Margin="5">
+            <StackPanel VerticalAlignment="Center">
+                <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="*,*">
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Grid.Row="0"
+                        Margin="20,10,10,5"
+                        Text="序列号："
+                        VerticalAlignment="Center" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="1"
+                        Grid.ColumnSpan="2"
+                        Grid.Row="0"
+                        Margin="10,10,10,5" />
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Grid.Column="3"
+                        Grid.Row="0"
+                        Margin="20,10,10,5"
+                        Text="版本号："
+                        VerticalAlignment="Center" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="4"
+                        Grid.ColumnSpan="2"
+                        Grid.Row="0"
+                        Margin="10,10,20,5" />
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Grid.Column="0"
+                        Grid.Row="1"
+                        Margin="20,5,10,10"
+                        Text="IMEI号："
+                        VerticalAlignment="Center" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="1"
+                        Grid.ColumnSpan="2"
+                        Grid.Row="1"
+                        Margin="10,5,10,10" />
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Grid.Column="3"
+                        Grid.Row="1"
+                        Margin="20,5,10,10"
+                        Text="CCID号："
+                        VerticalAlignment="Center" />
+                    <TextBox
+                        Background="White"
+                        Grid.Column="4"
+                        Grid.ColumnSpan="2"
+                        Grid.Row="1"
+                        Margin="10,5,20,10" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="5"
+            Grid.ColumnSpan="3"
+            Grid.Row="1"
+            Margin="5">
+            <StackPanel Background="White" Margin="20">
+                <TextBlock
+                    FontSize="50"
+                    FontStyle="Oblique"
+                    FontWeight="Bold"
+                    Foreground="Green"
+                    HorizontalAlignment="Center"
+                    Padding="10"
+                    Text="PASS" />
+            </StackPanel>
+        </Border>
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="8"
+            Grid.ColumnSpan="2"
+            Grid.Row="1"
+            Margin="5">
+            <StackPanel VerticalAlignment="Center">
+                <Grid ColumnDefinitions="*" RowDefinitions="*,*">
+                    <Button
+                        Background="#FF8C00"
+                        Grid.Row="0"
+                        HorizontalAlignment="Stretch"
+                        Margin="20,10,20,10"
+                        Theme="{DynamicResource SolidButton}">
+                        开始检测
+                    </Button>
+                    <Button
+                        Background="#FF8C00"
+                        Grid.Row="1"
+                        HorizontalAlignment="Stretch"
+                        Margin="20,10,20,10"
+                        Theme="{DynamicResource SolidButton}">
+                        保存结果
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Border>
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="0"
+            Grid.ColumnSpan="10"
+            Grid.Row="2"
+            Margin="5,5,5,0">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="0"
+                    HorizontalAlignment="Stretch"
+                    Margin="20,10,10,10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    电压检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="1"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    通讯检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="2"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    AI检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="3"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    AO检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="4"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    DI检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="5"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    DO检测
+                </Button>
+                <Button
+                    Background="#FF8C00"
+                    Grid.Column="5"
+                    HorizontalAlignment="Stretch"
+                    Margin="10"
+                    Padding="20,10,20,10"
+                    Theme="{DynamicResource SolidButton}">
+                    时钟检测
+                </Button>
+            </Grid>
+        </Border>
+        <Border
+            Grid.Column="0"
+            Grid.ColumnSpan="10"
+            Grid.Row="3"
+            Margin="5,0,5,0">
+            <ProgressBar Margin="5" VerticalAlignment="Center" />
+        </Border>
+        <Border
+            Background="#4169E1"
+            CornerRadius="5"
+            Grid.Column="0"
+            Grid.ColumnSpan="10"
+            Grid.Row="4"
+            Margin="5,0,5,5">
+            <ScrollViewer
+                Background="White"
+                HorizontalScrollBarVisibility="Auto"
+                Margin="10"
+                VerticalScrollBarVisibility="Auto">
+                <TextBlock
+                    FontSize="16"
+                    Padding="10"
+                    Text="{Binding DetectLog}"
+                    TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Border>
+    </Grid>
 </Window>
