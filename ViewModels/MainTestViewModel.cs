@@ -15,7 +15,7 @@ public class MainTestViewModel : ReactiveObject
     {
         _detectionService = detectionService;
         _exportService = exportService;
-        _detectLog ="检测结果";
+        _detectLog ="";
         
         StartTestCommand = ReactiveCommand.CreateFromTask(StartTestAsync);
         VoltageTestCommand = ReactiveCommand.CreateFromTask(VoltageTestAsync);
