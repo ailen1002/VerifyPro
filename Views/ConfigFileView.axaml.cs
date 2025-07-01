@@ -1,7 +1,6 @@
-﻿using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
+using VerifyPro.ViewModels;
 
 namespace VerifyPro.Views;
 
@@ -10,6 +9,7 @@ public partial class ConfigFileView : Window
     public ConfigFileView()
     {
         InitializeComponent();
+        DataContext = new ConfigFileViewModel();
     }
     private async void OnSelectFileClick(object? sender, RoutedEventArgs e)
     {
@@ -25,10 +25,12 @@ public partial class ConfigFileView : Window
         };
 
         var result = await dialog.ShowAsync(this);
-        if (result != null && result.Length > 0)
-        {
-            SelectedFileNameTextBox.Text = result[0];
-        }
+        if (result is not { Length: > 0 }) return;
+        var filePath = result[0];
+        // 访问 ViewModel 并调用逻辑
+        if (DataContext is not ConfigFileViewModel vm) return;
+        vm.SelectedFilePath = filePath;
+        vm.LoadConfigFromFile(filePath);
     }
 
     private void Close(object? sender, RoutedEventArgs e)
