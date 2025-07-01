@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -19,7 +18,7 @@ namespace VerifyPro.Services
 
             var lines = detectLog?
                             .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries) 
-                        ?? Array.Empty<string>();
+                        ?? [];
 
             foreach (var line in lines)
             {
