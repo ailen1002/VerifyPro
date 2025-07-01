@@ -8,6 +8,7 @@ namespace VerifyPro;
 
 public partial class App : Application
 {
+    public static ConfigFileViewModel SharedConfigViewModel { get; private set; } = null!;
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -17,6 +18,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            SharedConfigViewModel = new ConfigFileViewModel();
+            
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(),
