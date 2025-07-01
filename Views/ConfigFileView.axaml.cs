@@ -9,7 +9,6 @@ public partial class ConfigFileView : Window
     public ConfigFileView()
     {
         InitializeComponent();
-        DataContext = App.SharedConfigViewModel;;
     }
     private async void OnSelectFileClick(object? sender, RoutedEventArgs e)
     {

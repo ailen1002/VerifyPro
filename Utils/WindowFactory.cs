@@ -3,6 +3,7 @@ using VerifyPro.Views;
 using VerifyPro.ViewModels;
 using VerifyPro.Services;
 using System;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace VerifyPro.Utils;
 
@@ -14,7 +15,10 @@ public static  class WindowFactory
         {
             "CommConfig" => new CommConfigView(),
             "TestControllerType" => new TestControllerTypeView(),
-            "ConfigFile" => new ConfigFileView(),
+            "ConfigFile" => new ConfigFileView
+            {
+                DataContext = App.Services.GetRequiredService<ConfigFileViewModel>()
+            },
             "SelfCheck" => new SelfCheckView(),
             "Calibration" => new CalibrationView(),
             "Finish" => CreateMainTestView(),
@@ -24,14 +28,10 @@ public static  class WindowFactory
 
     private static Window CreateMainTestView()
     {
-        var detectionService = new DetectionService();
-        var exportService = new ExportService();
-        var configVm = App.SharedConfigViewModel;
-   
-        var viewModel = new MainTestViewModel(detectionService,exportService,configVm);
+        var vm = App.Services.GetRequiredService<MainTestViewModel>();
         return new MainTestView
         {
-            DataContext = viewModel
+            DataContext = vm
         };
     }
 }
