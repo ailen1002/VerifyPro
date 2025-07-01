@@ -2,12 +2,19 @@
 using System.IO;
 using System.Text.Json;
 using ReactiveUI;
+using VerifyPro.Interfaces;
 using VerifyPro.Models;
 
 namespace VerifyPro.ViewModels;
 
 public class ConfigFileViewModel : ReactiveObject
 {
+    private readonly INavigationService _navigationService;
+    public ConfigFileViewModel(INavigationService navigationService)
+    {
+        _navigationService = navigationService;
+    }
+    
     private string? _selectedFilePath;
     public string? SelectedFilePath
     {
@@ -35,5 +42,12 @@ public class ConfigFileViewModel : ReactiveObject
         {
             Console.WriteLine($"加载配置失败: {ex.Message}");
         }
+    }
+    
+    public void ConfirmAndNavigate()
+    {
+        if (string.IsNullOrEmpty(SelectedFilePath)) return;
+        LoadConfigFromFile(SelectedFilePath);
+        _navigationService.Navigate("Finish");
     }
 }

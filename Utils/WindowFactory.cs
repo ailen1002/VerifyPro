@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using VerifyPro.Views;
 using VerifyPro.ViewModels;
-using VerifyPro.Services;
 using System;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,17 +20,11 @@ public static  class WindowFactory
             },
             "SelfCheck" => new SelfCheckView(),
             "Calibration" => new CalibrationView(),
-            "Finish" => CreateMainTestView(),
+            "Finish" => new MainTestView
+            {
+                DataContext = App.Services.GetRequiredService<MainTestViewModel>()
+            },
             _ => throw new ArgumentOutOfRangeException(nameof(page), page, null)
-        };
-    }
-
-    private static Window CreateMainTestView()
-    {
-        var vm = App.Services.GetRequiredService<MainTestViewModel>();
-        return new MainTestView
-        {
-            DataContext = vm
         };
     }
 }

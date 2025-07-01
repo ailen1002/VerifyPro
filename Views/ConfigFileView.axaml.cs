@@ -29,11 +29,13 @@ public partial class ConfigFileView : Window
         // 访问 ViewModel 并调用逻辑
         if (DataContext is not ConfigFileViewModel vm) return;
         vm.SelectedFilePath = filePath;
-        vm.LoadConfigFromFile(filePath);
     }
 
     private void Close(object? sender, RoutedEventArgs e)
     {
-        this.Close(); 
+        if (DataContext is ConfigFileViewModel vm)
+        {
+            vm.ConfirmAndNavigate();
+        }
     }
 }

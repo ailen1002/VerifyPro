@@ -1,15 +1,14 @@
 using System;
 using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using VerifyPro.Interfaces;
 using VerifyPro.Services;
 using VerifyPro.ViewModels;
-using VerifyPro.Views;
 
 namespace VerifyPro;
 
-public partial class App : Application
+public class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
     public override void Initialize()
@@ -19,34 +18,23 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        var serviceCollection = new ServiceCollection();
+        var services  = new ServiceCollection();
 
-        ConfigureServices(serviceCollection);
+        // 注册视图模型
+        services.AddSingleton<ConfigFileViewModel>();
+        services.AddSingleton<MainTestViewModel>();
 
-        Services = serviceCollection.BuildServiceProvider();
-        
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = new MainWindowViewModel(),
-            };
-        }
-
-        base.OnFrameworkInitializationCompleted();
-    }
-    
-    private void ConfigureServices(IServiceCollection services)
-    {
-        // 注册服务（单例/瞬态）
+        // 注册服务
+        services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<DetectionService>();
         services.AddSingleton<ExportService>();
 
-        // 注册共享 ViewModel（单例）
-        services.AddSingleton<ConfigFileViewModel>();
+        Services = services.BuildServiceProvider();
+        
+        // 启动第一个窗口
+        var nav = Services.GetRequiredService<INavigationService>();
+        nav.Navigate("ConfigFile");
 
-        // 注册 MainTestViewModel：注意它依赖上面服务
-        services.AddTransient<MainTestViewModel>();
+        base.OnFrameworkInitializationCompleted();
     }
 }
