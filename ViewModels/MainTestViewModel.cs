@@ -11,15 +11,25 @@ public class MainTestViewModel : ReactiveObject
     // 构造函数注入服务
     private readonly DetectionService _detectionService;
     private readonly ExportService _exportService;
-    public MainTestViewModel(DetectionService detectionService, ExportService exportService)
+    private ConfigFileViewModel ConfigFileVm { get; }
+    public MainTestViewModel(DetectionService detectionService, ExportService exportService, ConfigFileViewModel configFileVm)
     {
         _detectionService = detectionService;
         _exportService = exportService;
+        ConfigFileVm = configFileVm;
         _detectLog ="";
         
         StartTestCommand = ReactiveCommand.CreateFromTask(StartTestAsync);
         VoltageTestCommand = ReactiveCommand.CreateFromTask(VoltageTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
+        
+        // 示例：监听 Config 是否变化
+        this.WhenAnyValue(x => x.ConfigFileVm.Config)
+            .Subscribe(config =>
+            {
+                Console.WriteLine("MainTestViewModel 收到配置：" + ConfigFileVm.Config?.Modelname);
+                this.RaisePropertyChanged(nameof(ModelName));
+            });
     }
     
     // 属性绑定到界面用于显示检测日志
@@ -29,7 +39,7 @@ public class MainTestViewModel : ReactiveObject
         get => _detectLog;
         set => this.RaiseAndSetIfChanged(ref _detectLog, value);
     }
-    
+    public string? ModelName => ConfigFileVm.Config?.Modelname;
     public ReactiveCommand<Unit, Unit> StartTestCommand { get; }
     public ReactiveCommand<Unit, Unit> VoltageTestCommand { get; }
     public ReactiveCommand<Unit, Unit> ExportResultCommand { get; }

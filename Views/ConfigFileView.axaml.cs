@@ -9,7 +9,7 @@ public partial class ConfigFileView : Window
     public ConfigFileView()
     {
         InitializeComponent();
-        DataContext = new ConfigFileViewModel();
+        DataContext = App.SharedConfigViewModel;;
     }
     private async void OnSelectFileClick(object? sender, RoutedEventArgs e)
     {
@@ -35,6 +35,6 @@ public partial class ConfigFileView : Window
 
     private void Close(object? sender, RoutedEventArgs e)
     {
-        this.Close();
+        this.Close(); 
     }
 }

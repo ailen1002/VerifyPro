@@ -26,8 +26,9 @@ public static  class WindowFactory
     {
         var detectionService = new DetectionService();
         var exportService = new ExportService();
-        
-        var viewModel = new MainTestViewModel(detectionService,exportService);
+        var configVm = App.SharedConfigViewModel;
+   
+        var viewModel = new MainTestViewModel(detectionService,exportService,configVm);
         return new MainTestView
         {
             DataContext = viewModel

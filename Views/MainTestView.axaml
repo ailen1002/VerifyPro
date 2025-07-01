@@ -28,7 +28,7 @@
                     Foreground="White"
                     HorizontalAlignment="Left"
                     Padding="20,5,5,5"
-                    Text="测试机种名称"
+                    Text="{Binding ModelName}"
                     VerticalAlignment="Center" />
             </StackPanel>
         </Border>
