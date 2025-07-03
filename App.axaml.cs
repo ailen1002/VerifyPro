@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using VerifyPro.Interfaces;
 using VerifyPro.Services;
+using VerifyPro.Utils;
 using VerifyPro.ViewModels;
 
 namespace VerifyPro;
@@ -23,11 +24,12 @@ public class App : Application
         // 注册视图模型
         services.AddSingleton<ConfigFileViewModel>();
         services.AddSingleton<MainTestViewModel>();
-
+        //核心服务
+        services.AddSingleton<DeviceCommManager>();
+        services.AddSingleton<ExportService>();
         // 注册服务
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<DetectionService>();
-        services.AddSingleton<ExportService>();
 
         Services = services.BuildServiceProvider();
         
