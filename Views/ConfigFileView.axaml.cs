@@ -37,5 +37,7 @@ public partial class ConfigFileView : Window
         {
             vm.ConfirmAndNavigate();
         }
+        
+        this.Close();
     }
 }

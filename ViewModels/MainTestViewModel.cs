@@ -21,8 +21,10 @@ public class MainTestViewModel : ReactiveObject
         
         StartTestCommand = ReactiveCommand.CreateFromTask(StartTestAsync);
         VoltageTestCommand = ReactiveCommand.CreateFromTask(VoltageTestAsync);
+        CommTestCommand = ReactiveCommand.CreateFromTask(CommTestAsync);
+        DiTestCommand = ReactiveCommand.CreateFromTask(DiTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
-        
+
         // 示例：监听 Config 是否变化
         this.WhenAnyValue(x => x.ConfigFileVm.Config)
             .Subscribe(config =>
@@ -42,6 +44,8 @@ public class MainTestViewModel : ReactiveObject
     public string? ModelName => ConfigFileVm.Config?.Modelname;
     public ReactiveCommand<Unit, Unit> StartTestCommand { get; }
     public ReactiveCommand<Unit, Unit> VoltageTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> CommTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> DiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> ExportResultCommand { get; }
     
     private async Task StartTestAsync()
@@ -55,7 +59,18 @@ public class MainTestViewModel : ReactiveObject
         DetectLog += "开始电压检测...\n";
         await _detectionService.RunVoltageTestAsync(AppendLog);
     }
+    
+    private async Task CommTestAsync()
+    {
+        DetectLog += "开始通讯检测...\n";
+        await _detectionService.RunCommTestAsync(AppendLog);
+    }
 
+    private async Task DiTestAsync()
+    {
+        DetectLog += "开始DI检测...\n";
+        await _detectionService.RunDiTestAsync(AppendLog);
+    }
     private void ExportResults()
     {
         const string filePath = "检测结果.csv";

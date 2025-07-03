@@ -172,6 +172,7 @@
                 </Button>
                 <Button
                     Background="#FF8C00"
+                    Command="{Binding CommTestCommand}"
                     Grid.Column="1"
                     HorizontalAlignment="Stretch"
                     Margin="10"
@@ -199,6 +200,7 @@
                 </Button>
                 <Button
                     Background="#FF8C00"
+                    Command="{Binding DiTestCommand}"
                     Grid.Column="4"
                     HorizontalAlignment="Stretch"
                     Margin="10"
