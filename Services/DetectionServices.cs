@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using VerifyPro.Enums;
 using VerifyPro.Models;
 using VerifyPro.Utils;
 
@@ -104,7 +105,7 @@ public class DetectionService
 
         var device = new Device.ModbusDevice
         {
-            Name = "数字量输出板卡",
+            Name = "继电器输出板卡",
             Ip = "192.168.1.153",
             Port = 502
         };
@@ -118,23 +119,13 @@ public class DetectionService
 
         try
         {
-            for (ushort address = 0; address <= 16; address++)
-            {
-                // 构造 Modbus 功能码 0x06 指令：
-                // [功能码, 地址高, 地址低, 数据高, 数据低]
-                var command = new byte[]
-                {
-                    0x06,
-                    (byte)(address >> 8), (byte)(address & 0xFF), // 地址
-                    0x00, 0x01 // 写入值 1
-                };
-
-                log($"写入寄存器地址 {address} 值 1...");
-                var response = await service.SendAsync(command);
-                log($"写入成功，响应长度: {response.Length}，数据: {BitConverter.ToString(response)}");
-
-                await Task.Delay(100); // 可选：短暂延时，避免写入过快
-            }
+            var outputBoard = new RelayOutputBoard(service, log);
+            
+            await outputBoard.ApSwitch.On();
+            
+            await Task.Delay(5000);
+            
+            await outputBoard.ApSwitch.Off();
         }
         catch (Exception ex)
         {
