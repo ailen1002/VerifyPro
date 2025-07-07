@@ -22,6 +22,7 @@ public class MainTestViewModel : ReactiveObject
         StartTestCommand = ReactiveCommand.CreateFromTask(StartTestAsync);
         VoltageTestCommand = ReactiveCommand.CreateFromTask(VoltageTestAsync);
         CommTestCommand = ReactiveCommand.CreateFromTask(CommTestAsync);
+        AiTestCommand = ReactiveCommand.CreateFromTask(AiTestAsync);
         DiTestCommand = ReactiveCommand.CreateFromTask(DiTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
 
@@ -45,6 +46,7 @@ public class MainTestViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> StartTestCommand { get; }
     public ReactiveCommand<Unit, Unit> VoltageTestCommand { get; }
     public ReactiveCommand<Unit, Unit> CommTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> AiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> DiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> ExportResultCommand { get; }
     
@@ -66,6 +68,12 @@ public class MainTestViewModel : ReactiveObject
         await _detectionService.RunCommTestAsync(AppendLog);
     }
 
+    private async Task AiTestAsync()
+    {
+        DetectLog += "开始AI检测...\n";
+        await _detectionService.RunAiTestAsync(AppendLog);
+    }
+    
     private async Task DiTestAsync()
     {
         DetectLog += "开始DI检测...\n";

@@ -182,6 +182,7 @@
                 </Button>
                 <Button
                     Background="#FF8C00"
+                    Command="{Binding AiTestCommand}"
                     Grid.Column="2"
                     HorizontalAlignment="Stretch"
                     Margin="10"

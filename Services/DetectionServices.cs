@@ -8,14 +8,8 @@ using VerifyPro.Utils;
 
 namespace VerifyPro.Services;
 
-public class DetectionService
+public class DetectionService(DeviceCommManager commManager)
 {
-    private readonly DeviceCommManager _commManager;
-    public DetectionService(DeviceCommManager commManager)
-    {
-        _commManager = commManager;
-    }
-
     public async Task RunAllTestsAsync(Action<string> log)
     {
         log("开始所有测试...\n");
@@ -45,7 +39,7 @@ public class DetectionService
             Port = 9000
         };
 
-        var service = await _commManager.GetOrConnectTestDeviceAsync(device, log);
+        var service = await commManager.GetOrConnectTestDeviceAsync(device, log);
         if (service == null)
         {
             log("设备连接失败，检测中止！");
@@ -75,28 +69,35 @@ public class DetectionService
         var device = new Device.ModbusDevice
         {
             Name = "检测板卡",
-            Ip = "192.168.1.163",
+            Ip = "192.168.1.150",
             Port = 502
         };
 
-        var service = await _commManager.GetOrConnectModbusDeviceAsync(device, log);
+        var service = await commManager.GetOrConnectModbusDeviceAsync(device, log);
         if (service == null)
         {
             log("Modbus 设备连接失败！");
             return;
         }
-
-        var request = new byte[] { 0x00, 0x02 };
-
+        
         try
         {
-            var response = await service.SendAsync(request);
-            log($"模拟量读取成功，长度: {response.Length}，数据: {BitConverter.ToString(response)}");
+            var resBoard = new ResOutputBoard(service, log);
+            
+            await resBoard.CloseOddChannels();    // 控制 1, 3, 5, 7... 通道闭合
+            await Task.Delay(3000);
+            await resBoard.CloseEvenChannels();   // 控制 0, 2, 4, 6... 通道闭合
+            await Task.Delay(3000);
+            await resBoard.CloseAllChannels();    // 所有通道闭合
+            await Task.Delay(3000);
+            await resBoard.OpenAllChannels();
         }
         catch (Exception ex)
         {
-            log($"模拟量读取失败: {ex.Message}");
+            log($"写入失败: {ex.Message}");
         }
+
+        log("DI检测完成。");
     }
 
     public async Task RunDiTestAsync(Action<string> log)
@@ -110,7 +111,7 @@ public class DetectionService
             Port = 502
         };
 
-        var service = await _commManager.GetOrConnectModbusDeviceAsync(device, log);
+        var service = await commManager.GetOrConnectModbusDeviceAsync(device, log);
         if (service == null)
         {
             log("Modbus 设备连接失败！");
