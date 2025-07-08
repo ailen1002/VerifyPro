@@ -8,12 +8,10 @@ namespace VerifyPro.Services;
 public class RelayOutputBoard
 {
     private readonly ICommunicationService _service;
-    private readonly Action<string> _log;
 
-    public RelayOutputBoard(ICommunicationService service, Action<string> log)
+    public RelayOutputBoard(ICommunicationService service)
     {
         _service = service;
-        _log = log;
 
         // 为每个输出创建对应的控制对象
         ApSwitch = CreatePort(RelayOutput.ApSwitch);
@@ -59,9 +57,7 @@ public class RelayOutputBoard
             (byte)(address >> 8), (byte)(address & 0xFF),
             (byte)(value >> 8), (byte)(value & 0xFF)
         };
-
-        _log($"写入 {output} 为 {(on ? "ON" : "OFF")} (地址 {address})...");
+        
         var response = await _service.SendAsync(command);
-        _log($"响应: {BitConverter.ToString(response)}");
     }
 }

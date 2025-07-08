@@ -6,7 +6,7 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class ResOutputBoard(ICommunicationService service, Action<string> log)
+public class ResOutputBoard(ICommunicationService service)
 {
     public async Task CloseOddChannels()
     {
@@ -60,9 +60,7 @@ public class ResOutputBoard(ICommunicationService service, Action<string> log)
             (byte)(address >> 8), (byte)(address & 0xFF),
             (byte)(value >> 8), (byte)(value & 0xFF)
         ];
-
-        log($"写入 {output} 为 {(on ? "ON" : "OFF")} (地址 {address})...");
+        
         var response = await service.SendAsync(command);
-        log($"响应: {BitConverter.ToString(response)}");
     }
 }
