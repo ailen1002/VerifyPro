@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Linq;
-using System.Net.Sockets;
 using System.Threading.Tasks;
-using VerifyPro.Enums;
+using VerifyPro.Interfaces;
 using VerifyPro.Models;
 using VerifyPro.Utils;
 
@@ -39,7 +37,7 @@ public class DetectionService(DeviceCommManager commManager)
             Port = 9000
         };
 
-        var service = await commManager.GetOrConnectTestDeviceAsync(device, log);
+        var service = await commManager.GetOrConnectTestDeviceAsync(device);
         if (service == null)
         {
             log("设备连接失败，检测中止！");
@@ -66,6 +64,7 @@ public class DetectionService(DeviceCommManager commManager)
     {
         log("模拟量检测开始...");
 
+        // 准备 Modbus 设备
         var device = new Device.ModbusDevice
         {
             Name = "检测板卡",
@@ -73,36 +72,58 @@ public class DetectionService(DeviceCommManager commManager)
             Port = 502
         };
 
-        var service = await commManager.GetOrConnectModbusDeviceAsync(device, log);
-        if (service == null)
-        {
-            log("Modbus 设备连接失败！");
-            return;
-        }
-        
+        ICommunicationService? service = null;
+
+        // 连接设备
         try
         {
-            var resBoard = new ResOutputBoard(service, log);
-            
-            await resBoard.CloseOddChannels();    // 控制 1, 3, 5, 7... 通道闭合
+            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+
+            if (service == null)
+            {
+                log("Modbus 设备连接失败");
+                return;
+            }
+
+            log("Modbus 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接 Modbus 设备异常: {ex.Message}");
+            return;
+        }
+
+        // 写入控制命令
+        try
+        {
+            var resBoard = new ResOutputBoard(service);
+
+            log("关闭奇数通道...");
+            await resBoard.CloseOddChannels();
             await Task.Delay(3000);
-            await resBoard.CloseEvenChannels();   // 控制 0, 2, 4, 6... 通道闭合
+
+            log("关闭偶数通道...");
+            await resBoard.CloseEvenChannels();
             await Task.Delay(3000);
-            await resBoard.CloseAllChannels();    // 所有通道闭合
+
+            log("关闭所有通道...");
+            await resBoard.CloseAllChannels();
             await Task.Delay(3000);
+
+            log("打开所有通道...");
             await resBoard.OpenAllChannels();
+
+            log("模拟量检测完成。");
         }
         catch (Exception ex)
         {
             log($"写入失败: {ex.Message}");
         }
-
-        log("DI检测完成。");
     }
 
     public async Task RunDiTestAsync(Action<string> log)
     {
-        log("DI检测开始...");
+        log("DI 检测开始...");
 
         var device = new Device.ModbusDevice
         {
@@ -111,29 +132,46 @@ public class DetectionService(DeviceCommManager commManager)
             Port = 502
         };
 
-        var service = await commManager.GetOrConnectModbusDeviceAsync(device, log);
-        if (service == null)
-        {
-            log("Modbus 设备连接失败！");
-            return;
-        }
+        ICommunicationService? service = null;
 
+        // 连接 Modbus 设备
         try
         {
-            var outputBoard = new RelayOutputBoard(service, log);
-            
-            await outputBoard.ApSwitch.On();
-            
-            await Task.Delay(5000);
-            
-            await outputBoard.ApSwitch.Off();
+            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+
+            if (service == null)
+            {
+                log("Modbus 设备连接失败！");
+                return;
+            }
+
+            log("Modbus 设备连接成功");
         }
         catch (Exception ex)
         {
-            log($"写入失败: {ex.Message}");
+            log($"连接 Modbus 设备异常: {ex.Message}");
+            return;
         }
 
-        log("DI检测完成。");
+        // 控制输出板
+        try
+        {
+            var outputBoard = new RelayOutputBoard(service);
+
+            log("打开 AP 开关...");
+            await outputBoard.ApSwitch.On();
+
+            await Task.Delay(5000);
+
+            log("关闭 AP 开关...");
+            await outputBoard.ApSwitch.Off();
+
+            log("DI 检测完成。");
+        }
+        catch (Exception ex)
+        {
+            log($"控制失败: {ex.Message}");
+        }
     }
 
 }
