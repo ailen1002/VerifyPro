@@ -159,7 +159,7 @@
             Grid.ColumnSpan="10"
             Grid.Row="2"
             Margin="5,5,5,0">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
                 <Button
                     Background="#FF8C00"
                     Command="{Binding VoltageTestCommand}"
@@ -211,6 +211,7 @@
                 </Button>
                 <Button
                     Background="#FF8C00"
+                    Command="{Binding DoTestCommand}"
                     Grid.Column="5"
                     HorizontalAlignment="Stretch"
                     Margin="10"
@@ -220,7 +221,7 @@
                 </Button>
                 <Button
                     Background="#FF8C00"
-                    Grid.Column="5"
+                    Grid.Column="6"
                     HorizontalAlignment="Stretch"
                     Margin="10"
                     Padding="20,10,20,10"

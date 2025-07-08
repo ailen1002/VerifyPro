@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reactive;
+using System.Threading;
 using System.Threading.Tasks;
 using ReactiveUI;
 using VerifyPro.Services;
@@ -11,6 +12,7 @@ public class MainTestViewModel : ReactiveObject
     // 构造函数注入服务
     private readonly DetectionService _detectionService;
     private readonly ExportService _exportService;
+    private CancellationTokenSource _doTestCts = new();
     private ConfigFileViewModel ConfigFileVm { get; }
     public MainTestViewModel(DetectionService detectionService, ExportService exportService, ConfigFileViewModel configFileVm)
     {
@@ -24,6 +26,7 @@ public class MainTestViewModel : ReactiveObject
         CommTestCommand = ReactiveCommand.CreateFromTask(CommTestAsync);
         AiTestCommand = ReactiveCommand.CreateFromTask(AiTestAsync);
         DiTestCommand = ReactiveCommand.CreateFromTask(DiTestAsync);
+        DoTestCommand = ReactiveCommand.CreateFromTask(DoTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
 
         // 示例：监听 Config 是否变化
@@ -48,6 +51,7 @@ public class MainTestViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> CommTestCommand { get; }
     public ReactiveCommand<Unit, Unit> AiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> DiTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> DoTestCommand { get; }
     public ReactiveCommand<Unit, Unit> ExportResultCommand { get; }
     
     private async Task StartTestAsync()
@@ -79,11 +83,41 @@ public class MainTestViewModel : ReactiveObject
         DetectLog += "开始DI检测...\n";
         await _detectionService.RunDiTestAsync(AppendLog);
     }
+    
+    private async Task DoTestAsync()
+    {
+        DetectLog += "开始DO检测...\n";
+
+        // 取消上次检测（如果有）
+        _doTestCts?.Cancel();
+        _doTestCts = new CancellationTokenSource();
+
+        try
+        {
+            await _detectionService.RunDoTestAsync(AppendLog, _doTestCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            DetectLog += "DO检测已取消\n";
+        }
+        catch (Exception ex)
+        {
+            DetectLog += $"DO检测异常: {ex.Message}\n";
+        }
+    }
+    
     private void ExportResults()
     {
         const string filePath = "检测结果.csv";
         _exportService.ExportToCsv(_detectLog, filePath);
         AppendLog($"结果已导出到 {filePath}");
+    }
+    
+    private void CancelDoTest()
+    {
+        if (_doTestCts.IsCancellationRequested) return;
+        _doTestCts.Cancel();
+        DetectLog += "请求取消DO检测...\n";
     }
     
     private void AppendLog(string message)

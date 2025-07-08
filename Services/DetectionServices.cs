@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using VerifyPro.Enums;
 using VerifyPro.Interfaces;
 using VerifyPro.Models;
 using VerifyPro.Utils;
@@ -174,4 +178,74 @@ public class DetectionService(DeviceCommManager commManager)
         }
     }
 
+    public async Task RunDoTestAsync(Action<string> log, CancellationToken cancellationToken)
+    {
+        log("DO 检测开始...");
+
+        var device = new Device.ModbusDevice
+        {
+            Name = "开关量输入板卡",
+            Ip = "192.168.1.162",
+            Port = 502
+        };
+
+        ICommunicationService? service;
+        try
+        {
+            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            if (service == null)
+            {
+                log("Modbus 设备连接失败！");
+                return;
+            }
+
+            log("Modbus 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接 Modbus 设备异常: {ex.Message}");
+            return;
+        }
+
+        var switchInputBoard = new SwitchInputBoard(service);
+
+        // 通道别名映射（可扩展）
+        var inputMappings = new Dictionary<string, Func<bool>>
+        {
+            ["DI1"] = () => switchInputBoard.di1,
+            ["Start"] = () => switchInputBoard.di12,
+            ["Restart"] = () => switchInputBoard.di13
+        };
+
+        var lastStates = inputMappings.ToDictionary(kv => kv.Key, _ => (bool?)null);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await switchInputBoard.RefreshAsync();
+
+                foreach (var (name, getter) in inputMappings)
+                {
+                    var current = getter();
+                    var previous = lastStates[name];
+
+                    if (previous != null && previous == current) continue;
+                    log($"{name} 开关状态: {(current ? "开" : "关")}");
+                    lastStates[name] = current;
+                }
+                
+                await Task.Delay(500, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            log("DO 检测被取消。");
+        }
+        catch (Exception ex)
+        {
+            log($"轮询检测异常: {ex.Message}");
+        }
+    }
+    
 }
