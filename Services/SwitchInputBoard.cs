@@ -43,20 +43,20 @@ public class SwitchInputBoard(ICommunicationService service)
             _inputs[i] = value != 0;
         }
     }
-    public bool di1 => _inputs[0];
-    public bool di2 => _inputs[1];
-    public bool di3 => _inputs[2];
-    public bool di4 => _inputs[3];
-    public bool di5 => _inputs[4];
-    public bool di6 => _inputs[5];
-    public bool di7 => _inputs[6];
-    public bool di8 => _inputs[7];
-    public bool di9 => _inputs[8];
-    public bool di10 => _inputs[9];
-    public bool di11 => _inputs[10];
-    public bool di12 => _inputs[11];
-    public bool di13 => _inputs[12];
-    public bool di14 => _inputs[13];
-    public bool di15 => _inputs[14];
-    public bool di16 => _inputs[15];
+    public bool Di1 => _inputs[0];
+    public bool Di2 => _inputs[1];
+    public bool Di3 => _inputs[2];
+    public bool Di4 => _inputs[3];
+    public bool Di5 => _inputs[4];
+    public bool Di6 => _inputs[5];
+    public bool Di7 => _inputs[6];
+    public bool Di8 => _inputs[7];
+    public bool Di9 => _inputs[8];
+    public bool Di10 => _inputs[9];
+    public bool Di11 => _inputs[10];
+    public bool Di12 => _inputs[11];
+    public bool Di13 => _inputs[12];
+    public bool Di14 => _inputs[13];
+    public bool Di15 => _inputs[14];
+    public bool Di16 => _inputs[15];
 }

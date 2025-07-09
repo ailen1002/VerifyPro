@@ -212,9 +212,9 @@ public class DetectionService(DeviceCommManager commManager)
         // 通道别名映射（可扩展）
         var inputMappings = new Dictionary<string, Func<bool>>
         {
-            ["DI1"] = () => switchInputBoard.di1,
-            ["Start"] = () => switchInputBoard.di12,
-            ["Restart"] = () => switchInputBoard.di13
+            ["DI1"] = () => switchInputBoard.Di1,
+            ["Start"] = () => switchInputBoard.Di12,
+            ["Restart"] = () => switchInputBoard.Di13
         };
 
         var lastStates = inputMappings.ToDictionary(kv => kv.Key, _ => (bool?)null);
