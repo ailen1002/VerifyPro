@@ -270,17 +270,16 @@ public class DetectionService(DeviceCommManager commManager)
         }
     }
 
-    public async Task RunDoTestAsync(Action<string> log, CancellationToken cancellationToken)
+    public async Task<bool> RunDoTestAsync(Action<string> log, CancellationToken cancellationToken)
     {
-        CurrentState = DetectionState.Running;
         log("DO 检测开始...");
 
         // 初始化设备
         var (service1, service2, service3) = await InitializeDevicesAsync(log);
         if (service1 is null || service2 is null || service3 is null)
         {
-            CurrentState = DetectionState.Error;
-            return;
+            log("初始化设备失败");
+            return false;
         }
 
         var acInputBoard = new InputBoard(service1);
@@ -289,11 +288,11 @@ public class DetectionService(DeviceCommManager commManager)
 
         var inputMappings = GetInputMappings(acInputBoard, dcInputBoard);
         var lastStates = inputMappings.ToDictionary(kv => kv.Key, _ => (bool?)null);
-
-        await outputBoard.TestSwitch.On();
+        
         var stopwatch = Stopwatch.StartNew();
         try
         {
+            await outputBoard.TestSwitch.On();
             stopwatch.Restart();
 
             while (!cancellationToken.IsCancellationRequested && stopwatch.Elapsed.TotalSeconds <= 20)
@@ -314,7 +313,7 @@ public class DetectionService(DeviceCommManager commManager)
                         lastStates[name] = current;
                     }
                     CurrentState = DetectionState.Pass;
-                    return;
+                    return true;
                 }
                 
                 await Task.Delay(500, cancellationToken);
@@ -337,29 +336,37 @@ public class DetectionService(DeviceCommManager commManager)
             
             if (closedChannels.Count != 0)
             {
-                CurrentState = DetectionState.Error;
                 await ShowDetectionWarningAsync("继电器动作检测失败");
+                return false;
             }
             else
             {
-                CurrentState = DetectionState.Pass;
+                return true;
             }
         }
         catch (OperationCanceledException)
         {
             log("DO 检测被取消。");
-            CurrentState = DetectionState.Error;
+            return false;
         }
         catch (Exception ex)
         {
             log($"轮询检测异常: {ex.Message}");
-            CurrentState = DetectionState.Error;
+            return false;
         }
         finally
         {
-            await acInputBoard.ReSetAsync();
-            await dcInputBoard.ReSetAsync();
-            await outputBoard.TestSwitch.Off();
+            try
+            {
+                await acInputBoard.ReSetAsync();
+                await dcInputBoard.ReSetAsync();
+                await outputBoard.TestSwitch.Off();
+            }
+            catch (Exception ex)
+            {
+                log($"轮询检测异常: {ex.Message}");
+            }
+
             log("DO 检测完成。");
         }
     }

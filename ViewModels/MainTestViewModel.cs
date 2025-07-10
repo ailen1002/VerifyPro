@@ -13,6 +13,7 @@ public class MainTestViewModel : ReactiveObject
 {   
     // 构造函数注入服务
     private readonly DetectionService _detectionService;
+    private readonly DetectionStateService _stateService;
     private readonly ExportService _exportService;
     private CancellationTokenSource _doTestCts = new();
     private DetectionState _currentState;
@@ -38,9 +39,10 @@ public class MainTestViewModel : ReactiveObject
     };
     
     private ConfigFileViewModel ConfigFileVm { get; }
-    public MainTestViewModel(DetectionService detectionService, ExportService exportService, ConfigFileViewModel configFileVm)
+    public MainTestViewModel(DetectionService detectionService,DetectionStateService stateService, ExportService exportService, ConfigFileViewModel configFileVm)
     {
         _detectionService = detectionService;
+        _stateService = stateService;
         _exportService = exportService;
         ConfigFileVm = configFileVm;
         _detectLog ="";
@@ -54,13 +56,13 @@ public class MainTestViewModel : ReactiveObject
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
 
         // 监听服务中的状态变化
-        _detectionService.OnStateChanged += state =>
+        _stateService.StateChanged+= state =>
         {
             CurrentState = state;
         };
 
         // 初始化状态
-        _currentState = _detectionService.CurrentState;
+        _currentState = _stateService.CurrentState;
         
         // 示例：监听 Config 是否变化
         this.WhenAnyValue(x => x.ConfigFileVm.Config)
@@ -127,7 +129,11 @@ public class MainTestViewModel : ReactiveObject
 
         try
         {
-            await _detectionService.RunDoTestAsync(AppendLog, _doTestCts.Token);
+            _stateService.StartTest("DO");
+            
+            var success = await _detectionService.RunDoTestAsync(AppendLog, _doTestCts.Token);
+            
+            _stateService.ReportTestResult("DO", success);
         }
         catch (OperationCanceledException)
         {
@@ -144,6 +150,7 @@ public class MainTestViewModel : ReactiveObject
         const string filePath = "检测结果.csv";
         _exportService.ExportToCsv(_detectLog, filePath);
         AppendLog($"结果已导出到 {filePath}");
+        _stateService.SaveResults();
     }
     
     private void CancelDoTest()

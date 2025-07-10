@@ -30,6 +30,7 @@ public class App : Application
         // ×¢²á·þÎñ
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<DetectionService>();
+        services.AddSingleton<DetectionStateService>();
 
         Services = services.BuildServiceProvider();
         
