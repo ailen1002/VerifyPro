@@ -116,10 +116,10 @@
                     FontSize="50"
                     FontStyle="Oblique"
                     FontWeight="Bold"
-                    Foreground="Green"
+                    Foreground="{Binding StatusColor}"
                     HorizontalAlignment="Center"
                     Padding="10"
-                    Text="PASS" />
+                    Text="{Binding CurrentState}" />
             </StackPanel>
         </Border>
         <Border

@@ -2,7 +2,9 @@
 using System.Reactive;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media;
 using ReactiveUI;
+using VerifyPro.Enums;
 using VerifyPro.Services;
 
 namespace VerifyPro.ViewModels;
@@ -13,6 +15,28 @@ public class MainTestViewModel : ReactiveObject
     private readonly DetectionService _detectionService;
     private readonly ExportService _exportService;
     private CancellationTokenSource _doTestCts = new();
+    private DetectionState _currentState;
+    public DetectionState CurrentState
+    {
+        get => _currentState;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _currentState, value);
+            this.RaisePropertyChanged(nameof(StatusColor));
+        }
+    }
+    private static readonly Brush DarkOrangeBrush = 
+        (Brush)(new BrushConverter().ConvertFromString("#FF8C00") 
+                ?? throw new InvalidOperationException("Invalid color code"));
+    public IBrush StatusColor => CurrentState switch
+    {
+        DetectionState.Pass => Brushes.Green,
+        DetectionState.Error => Brushes.Red,
+        DetectionState.Idle => DarkOrangeBrush,
+        DetectionState.Running => Brushes.Yellow,
+        _ => Brushes.Gray
+    };
+    
     private ConfigFileViewModel ConfigFileVm { get; }
     public MainTestViewModel(DetectionService detectionService, ExportService exportService, ConfigFileViewModel configFileVm)
     {
@@ -29,6 +53,15 @@ public class MainTestViewModel : ReactiveObject
         DoTestCommand = ReactiveCommand.CreateFromTask(DoTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
 
+        // 监听服务中的状态变化
+        _detectionService.OnStateChanged += state =>
+        {
+            CurrentState = state;
+        };
+
+        // 初始化状态
+        _currentState = _detectionService.CurrentState;
+        
         // 示例：监听 Config 是否变化
         this.WhenAnyValue(x => x.ConfigFileVm.Config)
             .Subscribe(config =>
