@@ -5,11 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Dto;
 using MsBox.Avalonia.Models;
-using VerifyPro.Enums;
 using VerifyPro.Interfaces;
 using VerifyPro.Models;
 using VerifyPro.Utils;
@@ -18,22 +16,6 @@ namespace VerifyPro.Services;
 
 public class DetectionService(DeviceCommManager commManager)
 {
-    
-    private DetectionState _currentState = DetectionState.Idle;
-
-    public DetectionState CurrentState
-    {
-        get => _currentState;
-        private set
-        {
-            if (_currentState == value) return;
-            _currentState = value;
-            OnStateChanged?.Invoke(_currentState);
-        }
-    }
-    
-    public event Action<DetectionState>? OnStateChanged;
-    
     public async Task RunAllTestsAsync(Action<string> log)
     {
         log("开始所有测试...\n");
@@ -312,7 +294,6 @@ public class DetectionService(DeviceCommManager commManager)
                         log($"{name} 输出状态: {(current ? "闭合" : "断开")}");
                         lastStates[name] = current;
                     }
-                    CurrentState = DetectionState.Pass;
                     return true;
                 }
                 
