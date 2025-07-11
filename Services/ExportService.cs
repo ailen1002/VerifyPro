@@ -22,7 +22,6 @@ namespace VerifyPro.Services
 
             foreach (var line in lines)
             {
-                Console.WriteLine($"Log: {line}"); // 控制台打印调试
                 writer.WriteLine(line);
             }
         }

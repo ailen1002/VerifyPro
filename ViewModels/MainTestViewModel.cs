@@ -6,6 +6,7 @@ using Avalonia.Media;
 using ReactiveUI;
 using VerifyPro.Enums;
 using VerifyPro.Services;
+using VerifyPro.Utils;
 
 namespace VerifyPro.ViewModels;
 
@@ -26,20 +27,19 @@ public class MainTestViewModel : ReactiveObject
             this.RaisePropertyChanged(nameof(StatusColor));
         }
     }
-    private static readonly Brush DarkOrangeBrush = 
-        (Brush)(new BrushConverter().ConvertFromString("#FF8C00") 
-                ?? throw new InvalidOperationException("Invalid color code"));
+    private static readonly IBrush DarkOrangeBrush = Brush.Parse("#FF8C00");
+    private static readonly IBrush DarkYellowBrush = Brush.Parse("#FBC02d");
     public IBrush StatusColor => CurrentState switch
     {
         DetectionState.Pass => Brushes.Green,
         DetectionState.Error => Brushes.Red,
         DetectionState.Idle => DarkOrangeBrush,
-        DetectionState.Running => Brushes.Yellow,
+        DetectionState.Running => DarkYellowBrush,
         _ => Brushes.Gray
     };
     
     private ConfigFileViewModel ConfigFileVm { get; }
-    public MainTestViewModel(DetectionService detectionService,DetectionStateService stateService, ExportService exportService, ConfigFileViewModel configFileVm)
+    public MainTestViewModel(DeviceCommManager commManager,DetectionService detectionService,DetectionStateService stateService, ExportService exportService, ConfigFileViewModel configFileVm)
     {
         _detectionService = detectionService;
         _stateService = stateService;
@@ -63,6 +63,17 @@ public class MainTestViewModel : ReactiveObject
 
         // 初始化状态
         _currentState = _stateService.CurrentState;
+
+        // 启动监控服务
+        var switchInputMonitorService = new SwitchInputMonitorService(
+            commManager,
+            _stateService,
+            StartTestAsync,
+            CancelDoTest,
+            AppendLog
+        );
+
+        switchInputMonitorService.Start();
         
         // 示例：监听 Config 是否变化
         this.WhenAnyValue(x => x.ConfigFileVm.Config)
@@ -91,6 +102,7 @@ public class MainTestViewModel : ReactiveObject
     
     private async Task StartTestAsync()
     {
+        if (!CanRunTest("All")) return;
         DetectLog += "开始整机检测...\n";
         await _detectionService.RunAllTestsAsync(AppendLog);
     }
@@ -121,6 +133,8 @@ public class MainTestViewModel : ReactiveObject
     
     private async Task DoTestAsync()
     {
+        if (!CanRunTest("DO")) return;
+        
         DetectLog += "开始DO检测...\n";
 
         // 取消上次检测（如果有）
@@ -151,6 +165,8 @@ public class MainTestViewModel : ReactiveObject
         _exportService.ExportToCsv(_detectLog, filePath);
         AppendLog($"结果已导出到 {filePath}");
         _stateService.SaveResults();
+        
+        DetectLog = string.Empty;
     }
     
     private void CancelDoTest()
@@ -163,5 +179,12 @@ public class MainTestViewModel : ReactiveObject
     private void AppendLog(string message)
     {
         DetectLog += $"{DateTime.Now:HH:mm:ss} - {message}\n";
+    }
+    
+    private bool CanRunTest(string testName)
+    {
+        if (_stateService.CurrentState == DetectionState.Idle) return true;
+        AppendLog($"当前非 Idle 状态，无法开始 {testName} 检测。");
+        return false;
     }
 }
