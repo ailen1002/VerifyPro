@@ -27,12 +27,74 @@ public class DetectionService(DeviceCommManager commManager)
         log("\n所有测试完成。");
     }
 
-    public async Task RunVoltageTestAsync(Action<string> log)
+    public async Task<bool> RunVoltageTestAsync(Action<string> log)
     {
-        log("正在读取电压...");
-        await Task.Delay(300);
-        log("电压值为 12.1V");
+        log("模拟量检测开始...");
+
+        var device = new Device.ModbusDevice
+        {
+            Name = "电压检测板卡",
+            Ip = "192.168.1.155",
+            Port = 502
+        };
+
+        try
+        {
+            var service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            if (service == null)
+            {
+                log("Modbus 电压板卡连接失败");
+                return false;
+            }
+
+            log("Modbus 电压板卡连接成功");
+
+            var board = new VoltageInputBoard(service);
+            await board.ReadVoltageAsync();
+
+            // 电压检测点定义（名称, 读取值, 最小值, 最大值）
+            var voltageChecks = new (string Name, float Value, float Min, float Max)[]
+            {
+                ("HIC-power", board.Volt1, 21.49f, 23.4f),
+                //("crPower_18V", board.Volt2, 20.32f, 21.19f),
+                //("crPower_16V", board.Volt3, 16.06f, 16.68f),
+                //("crPower_15V", board.Volt4, 14.6f, 15.4f),
+                //("crPower_14V", board.Volt5, 14.43f, 15.73f),
+                //("crPower_12V", board.Volt6, 11.38f, 12.63f),
+                //("crPower_5V", board.Volt7, 4.75f, 5.25f),
+                //("hicPower_15V", board.Volt8, 14.99f, 16.01f),
+                //("hicPower_15FMV", board.Volt9, 15.4f, 16.78f),
+                //("hicPower_12V", board.Volt10, 11.38f, 12.63f),
+                //("hicPower_5V", board.Volt11, 4.75f, 5.25f),
+                //("fanPower_5V", board.Volt12, 4.75f, 5.25f)
+            };
+
+            var allPass = true;
+
+            foreach (var (name, value, min, max) in voltageChecks)
+            {
+                log($"{name} 电压范围 {min}-{max}V");
+                log($"{name} 实测电压 {value}V");
+
+                if (value < min || value > max)
+                {
+                    log($"⚠️ {name} 电压超出范围！");
+                    allPass = false;
+                }
+
+                await Task.Delay(100); // 控制日志节奏
+            }
+
+            log("模拟量检测完成。");
+            return allPass;
+        }
+        catch (Exception ex)
+        {
+            log($"电压检测失败: {ex.Message}");
+            return false;
+        }
     }
+
 
     public async Task RunCommTestAsync(Action<string> log)
     {

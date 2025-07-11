@@ -109,8 +109,15 @@ public class MainTestViewModel : ReactiveObject
 
     private async Task VoltageTestAsync()
     {
-        DetectLog += "开始电压检测...\n";
-        await _detectionService.RunVoltageTestAsync(AppendLog);
+        if (!CanRunTest("Voltage")) return;
+
+        AppendLog("开始AI检测...");
+
+        _stateService.StartTest("AI");
+
+        var result = await _detectionService.RunVoltageTestAsync(AppendLog);
+
+        _stateService.ReportTestResult("AI", result);
     }
     
     private async Task CommTestAsync()
