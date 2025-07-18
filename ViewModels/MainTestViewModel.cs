@@ -17,6 +17,7 @@ public class MainTestViewModel : ReactiveObject
     private readonly DetectionStateService _stateService;
     private readonly ExportService _exportService;
     private CancellationTokenSource _doTestCts = new();
+    private CancellationTokenSource _allTestCts = new();
     private DetectionState _currentState;
     public DetectionState CurrentState
     {
@@ -103,8 +104,15 @@ public class MainTestViewModel : ReactiveObject
     private async Task StartTestAsync()
     {
         if (!CanRunTest("All")) return;
-        DetectLog += "开始整机检测...\n";
-        await _detectionService.RunAllTestsAsync(AppendLog);
+        
+        // 取消上次检测（如果有）
+        _allTestCts?.Cancel();
+        _allTestCts = new CancellationTokenSource();
+        
+        AppendLog("开始整机检测...\n");
+        _stateService.StartTest("ALL");
+        var result = await _detectionService.RunAllTestsAsync(AppendLog,_allTestCts.Token);
+        _stateService.ReportTestResult("ALL", result);
     }
 
     private async Task VoltageTestAsync()
@@ -113,11 +121,11 @@ public class MainTestViewModel : ReactiveObject
 
         AppendLog("开始AI检测...");
 
-        _stateService.StartTest("AI");
+        _stateService.StartTest("Voltage");
 
         var result = await _detectionService.RunVoltageTestAsync(AppendLog);
 
-        _stateService.ReportTestResult("AI", result);
+        _stateService.ReportTestResult("Voltage", result);
     }
     
     private async Task CommTestAsync()
@@ -128,8 +136,15 @@ public class MainTestViewModel : ReactiveObject
 
     private async Task AiTestAsync()
     {
-        DetectLog += "开始AI检测...\n";
-        await _detectionService.RunAiTestAsync(AppendLog);
+        if (!CanRunTest("Voltage")) return;
+        
+        AppendLog("开始AI检测...\n");
+        
+        _stateService.StartTest("AI");
+        
+        var result = await _detectionService.RunAiTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("AI", result);
     }
     
     private async Task DiTestAsync()

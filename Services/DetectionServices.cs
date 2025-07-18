@@ -11,20 +11,34 @@ using MsBox.Avalonia.Models;
 using VerifyPro.Interfaces;
 using VerifyPro.Models;
 using VerifyPro.Utils;
+using VerifyPro.ViewModels;
 
 namespace VerifyPro.Services;
 
-public class DetectionService(DeviceCommManager commManager)
+public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel configFileViewModel)
 {
-    public async Task RunAllTestsAsync(Action<string> log)
+    private readonly Config _config = configFileViewModel.Config ?? throw new InvalidOperationException();
+    public async Task<bool> RunAllTestsAsync(Action<string> log, CancellationToken cancellationToken)
     {
         log("开始所有测试...\n");
 
-        await RunVoltageTestAsync(log);
-        await RunCommTestAsync(log);
-        await RunAiTestAsync(log);
+        try
+        {
+            var voltagePassed = await RunVoltageTestAsync(log);
+            if (!voltagePassed) return false;
+
+            var doPassed = await RunDoTestAsync(log, cancellationToken);
+            if (!doPassed) return false;
+        }
+        catch (Exception ex)
+        {
+            log($"测试中发生异常: {ex.Message}");
+            return false;
+        }
 
         log("\n所有测试完成。");
+        
+        return true;
     }
 
     public async Task<bool> RunVoltageTestAsync(Action<string> log)
@@ -94,8 +108,7 @@ public class DetectionService(DeviceCommManager commManager)
             return false;
         }
     }
-
-
+    
     public async Task RunCommTestAsync(Action<string> log)
     {
         log("通讯检测开始...");
@@ -130,67 +143,146 @@ public class DetectionService(DeviceCommManager commManager)
         log("通讯检测完成。");
     }
 
-    public async Task RunAiTestAsync(Action<string> log)
+    public async Task<bool> RunAiTestAsync(Action<string> log)
     {
         log("模拟量检测开始...");
 
         // 准备 Modbus 设备
-        var device = new Device.ModbusDevice
+        var device1 = new Device.ModbusDevice
         {
             Name = "检测板卡",
             Ip = "192.168.1.150",
             Port = 502
         };
 
-        ICommunicationService? service = null;
+        var device2 = new Device.TestDevice
+        {
+            Name = "测试设备",
+            Ip = "192.168.1.156",
+            Port = 9000
+        };
 
+        ICommunicationService? service1 = null;
+        ICommunicationService? service2 = null;
         // 连接设备
         try
         {
-            service = await commManager.GetOrConnectModbusDeviceAsync(device);
-
-            if (service == null)
+            service1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
+            service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
+            
+            if (service1 == null)
             {
                 log("Modbus 设备连接失败");
-                return;
+                return false;
+            }
+            
+            if (service2 == null)
+            {
+                log("Test 设备连接失败");
+                return false;
             }
 
-            log("Modbus 设备连接成功");
+            log("Modbus Test 设备连接成功");
         }
         catch (Exception ex)
         {
             log($"连接 Modbus 设备异常: {ex.Message}");
-            return;
+            return false;
         }
 
         // 写入控制命令
         try
         {
-            var resBoard = new ResOutputBoard(service);
-
+            var lowTempSensorLowL = _config.LOW_TEMP_SENSOR_LOW_L;
+            log("下限：" + lowTempSensorLowL);
+            var resBoard = new ResOutputBoard(service1);
+            var command = new byte[] { 0xE5, 0xFE, 0x11, 0x03, 0x00, 0x61, 0x00 };
+            var command1 = new byte[] { 0xE5, 0xFE, 0x15, 0x04, 0x00, 0x21, 0x02, 0x00};
+            var fullCommand = BuildCommandWithChecksum(command);
+            var fullCommand1 = BuildCommandWithChecksum(command1);
             log("关闭奇数通道...");
             await resBoard.CloseOddChannels();
-            await Task.Delay(3000);
+            await Task.Delay(1000);
+            var res = await service2.SendAsync(fullCommand);
+            log("接收数据: " + BitConverter.ToString(res));
+            await Task.Delay(10000);
+            var res1 = await service2.SendAsync(fullCommand1);
+            log("接收数据: " + BitConverter.ToString(res1));
+            var labels = new[]
+            {
+                "HPS", "LPS", "DISCH1", "OIL1", "TO",
+                "EXL1", "EXL2", "EXG1", "EXG2", "SCT", "SCG1", "SCL1"
+            };
 
+            const int startIndex = 15;
+    
+            for (var i = 0; i < labels.Length; i++)
+            {
+                int high = res1[startIndex + i * 2];
+                int low = res1[startIndex + i * 2 + 1];
+                var rawValue = (high << 8) | low;
+
+                var scaledValue = i is 0 or 1
+                    ? rawValue / 1000.0
+                    : rawValue / 10.0;
+
+                log($"{labels[i]}: {scaledValue:F3}");
+            }
+            
             log("关闭偶数通道...");
             await resBoard.CloseEvenChannels();
-            await Task.Delay(3000);
+            await Task.Delay(10000);
+            res1 = await service2.SendAsync(fullCommand1);
+            for (var i = 0; i < labels.Length; i++)
+            {
+                int high = res1[startIndex + i * 2];
+                int low = res1[startIndex + i * 2 + 1];
+                var rawValue = (high << 8) | low;
 
-            log("关闭所有通道...");
-            await resBoard.CloseAllChannels();
-            await Task.Delay(3000);
+                var scaledValue = i is 0 or 1
+                    ? rawValue / 1000.0
+                    : rawValue / 10.0;
 
+                log($"{labels[i]}: {scaledValue:F3}");
+            }
+            
             log("打开所有通道...");
             await resBoard.OpenAllChannels();
+            await Task.Delay(10000);
+            res1 = await service2.SendAsync(fullCommand1);
+            for (var i = 0; i < labels.Length; i++)
+            {
+                int high = res1[startIndex + i * 2];
+                int low = res1[startIndex + i * 2 + 1];
+                var rawValue = (high << 8) | low;
 
+                var scaledValue = i is 0 or 1
+                    ? rawValue / 1000.0
+                    : rawValue / 10.0;
+
+                log($"{labels[i]}: {scaledValue:F3}");
+            }
             log("模拟量检测完成。");
         }
         catch (Exception ex)
         {
             log($"写入失败: {ex.Message}");
         }
-    }
 
+        return true;
+    }
+    
+    private static byte[] BuildCommandWithChecksum(byte[] command)
+    {
+        var checksum = command.Aggregate<byte, byte>(0x00, (current, b) => (byte)(current ^ b));
+        
+        var fullCommand = new byte[command.Length + 1];
+        Array.Copy(command, fullCommand, command.Length);
+        fullCommand[^1] = checksum;
+
+        return fullCommand;
+    }
+    
     public async Task RunDiTestAsync(Action<string> log)
     {
         log("DI 检测开始...");

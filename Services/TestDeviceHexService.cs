@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using VerifyPro.Interfaces;
@@ -42,13 +43,13 @@ public class TestDeviceHexService : ICommunicationService
         if (_stream == null)
             throw new InvalidOperationException("未连接");
 
-        await _stream.WriteAsync(data, 0, data.Length);
-        
-        //接收数据暂不处理
-        //var buffer = new byte[1024];
-        //var bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length);
-        //return buffer.Take(bytesRead).ToArray();
-        return [];
+        await _stream.WriteAsync(data);
+
+        var buffer = new byte[1024];
+        var bytesRead = await _stream.ReadAsync(buffer);
+        var response = buffer.Take(bytesRead).ToArray();
+
+        return response;
     }
 }
  
