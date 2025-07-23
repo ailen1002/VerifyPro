@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -147,35 +148,25 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         log("模拟量检测开始...");
 
-        // 准备 Modbus 设备
-        var device1 = new Device.ModbusDevice
-        {
-            Name = "检测板卡",
-            Ip = "192.168.1.150",
-            Port = 502
-        };
+        // 准备设备
+        var device1 = new Device.ModbusDevice { Name = "检测板卡", Ip = "192.168.1.150", Port = 502 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
 
-        var device2 = new Device.TestDevice
-        {
-            Name = "测试设备",
-            Ip = "192.168.1.156",
-            Port = 9000
-        };
-
-        ICommunicationService? service1 = null;
-        ICommunicationService? service2 = null;
         // 连接设备
+        IModbusClient? service1 = null;
+        ITestDeviceService? service2 = null;
+
         try
         {
             service1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
             service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
-            
+
             if (service1 == null)
             {
                 log("Modbus 设备连接失败");
                 return false;
             }
-            
+
             if (service2 == null)
             {
                 log("Test 设备连接失败");
@@ -186,96 +177,216 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
         catch (Exception ex)
         {
-            log($"连接 Modbus 设备异常: {ex.Message}");
+            log($"连接设备异常: {ex.Message}");
             return false;
         }
 
-        // 写入控制命令
         try
         {
-            var lowTempSensorLowL = _config.LOW_TEMP_SENSOR_LOW_L;
-            log("下限：" + lowTempSensorLowL);
+            // 加载配置值
+            var config = LoadDetectionThresholds();
+
             var resBoard = new ResOutputBoard(service1);
-            var command = new byte[] { 0xE5, 0xFE, 0x11, 0x03, 0x00, 0x61, 0x00 };
-            var command1 = new byte[] { 0xE5, 0xFE, 0x15, 0x04, 0x00, 0x21, 0x02, 0x00};
-            var fullCommand = BuildCommandWithChecksum(command);
-            var fullCommand1 = BuildCommandWithChecksum(command1);
-            log("关闭奇数通道...");
-            await resBoard.CloseOddChannels();
-            await Task.Delay(1000);
-            var res = await service2.SendAsync(fullCommand);
-            log("接收数据: " + BitConverter.ToString(res));
+            var stopCommand = BuildCommandWithChecksum(_config.SYSTEM_STOP_TxData);
+            var detectCommand = BuildCommandWithChecksum(_config.AD_CHECK_TxData);
+
+            // 初始化日志与检测状态
+            var hasOutOfRange = false;
+            StringBuilder outOfRangeLog = new();
+
+            // 低点检测：全部关闭
+            await resBoard.CloseAllChannels();
+            await service2.SystemStop(stopCommand);
             await Task.Delay(10000);
-            var res1 = await service2.SendAsync(fullCommand1);
-            log("接收数据: " + BitConverter.ToString(res1));
-            var labels = new[]
+            var res1 = await RetryAnalogDetectionAsync(service2, detectCommand, log: log);
+            if (res1 == null)
             {
-                "HPS", "LPS", "DISCH1", "OIL1", "TO",
-                "EXL1", "EXL2", "EXG1", "EXG2", "SCT", "SCG1", "SCL1"
-            };
-
-            const int startIndex = 15;
-    
-            for (var i = 0; i < labels.Length; i++)
-            {
-                int high = res1[startIndex + i * 2];
-                int low = res1[startIndex + i * 2 + 1];
-                var rawValue = (high << 8) | low;
-
-                var scaledValue = i is 0 or 1
-                    ? rawValue / 1000.0
-                    : rawValue / 10.0;
-
-                log($"{labels[i]}: {scaledValue:F3}");
+                await ShowDetectionWarningAsync("模拟量检测失败，无法获取有效数据");
+                return false;
             }
-            
-            log("关闭偶数通道...");
+            log("低点检测数据: " + BitConverter.ToString(res1));
+            EvaluateData(res1, log, config, ref hasOutOfRange, outOfRangeLog, DetectionMode.Low);
+
+            // 奇数高点 偶数低点
             await resBoard.CloseEvenChannels();
             await Task.Delay(10000);
-            res1 = await service2.SendAsync(fullCommand1);
-            for (var i = 0; i < labels.Length; i++)
+            res1 = await RetryAnalogDetectionAsync(service2, detectCommand, log: log);
+            if (res1 == null)
             {
-                int high = res1[startIndex + i * 2];
-                int low = res1[startIndex + i * 2 + 1];
-                var rawValue = (high << 8) | low;
-
-                var scaledValue = i is 0 or 1
-                    ? rawValue / 1000.0
-                    : rawValue / 10.0;
-
-                log($"{labels[i]}: {scaledValue:F3}");
+                await ShowDetectionWarningAsync("模拟量检测失败，无法获取有效数据");
+                return false;
             }
-            
-            log("打开所有通道...");
+            log("交替检测数据: " + BitConverter.ToString(res1));
+            EvaluateData(res1, log, config, ref hasOutOfRange, outOfRangeLog, DetectionMode.Mixed);
+
+            // 全部高点检测
             await resBoard.OpenAllChannels();
             await Task.Delay(10000);
-            res1 = await service2.SendAsync(fullCommand1);
-            for (var i = 0; i < labels.Length; i++)
+            res1 = await RetryAnalogDetectionAsync(service2, detectCommand, log: log);
+            if (res1 == null)
             {
-                int high = res1[startIndex + i * 2];
-                int low = res1[startIndex + i * 2 + 1];
-                var rawValue = (high << 8) | low;
-
-                var scaledValue = i is 0 or 1
-                    ? rawValue / 1000.0
-                    : rawValue / 10.0;
-
-                log($"{labels[i]}: {scaledValue:F3}");
+                await ShowDetectionWarningAsync("模拟量检测失败，无法获取有效数据");
+                return false;
             }
-            log("模拟量检测完成。");
+            log("高点检测数据: " + BitConverter.ToString(res1));
+            EvaluateData(res1, log, config, ref hasOutOfRange, outOfRangeLog, DetectionMode.High);
+
+            // 弹窗提示并中断
+            if (hasOutOfRange)
+            {
+                await ShowDetectionWarningAsync(outOfRangeLog.ToString());
+                return false;
+            }
         }
         catch (Exception ex)
         {
-            log($"写入失败: {ex.Message}");
+            log($"检测异常: {ex.Message}");
+            return false;
         }
 
         return true;
     }
     
-    private static byte[] BuildCommandWithChecksum(byte[] command)
+    private static async Task<byte[]?> RetryAnalogDetectionAsync(
+        ITestDeviceService service,
+        byte[] command,
+        int maxRetries = 10,
+        int delayMs = 1000,
+        Action<string>? log = null)
     {
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var result = await service.AnalogDetection(command);
+                if (result.Length > 20)
+                    return result;
+
+                log?.Invoke($"第 {attempt} 次读取失败，响应为空或数据异常");
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"第 {attempt} 次读取异常: {ex.Message}");
+            }
+
+            if (attempt < maxRetries)
+                await Task.Delay(delayMs);
+        }
+
+        return null;
+    }
+
+    private enum DetectionMode
+    {
+        Low,
+        Mixed,
+        High
+    }
+
+    private class Thresholds
+    {
+        public double LowTempLowL, LowTempLowH, LowTempHighL, LowTempHighH;
+        public double HighTempLowL, HighTempLowH, HighTempHighL, HighTempHighH;
+        public double PressureLowL, PressureLowH, PressureHighL, PressureHighH;
+    }
+
+    private Thresholds LoadDetectionThresholds()
+    {
+        return new Thresholds
+        {
+            LowTempLowL = double.Parse(_config.LOW_TEMP_SENSOR_LOW_L),
+            LowTempLowH = double.Parse(_config.LOW_TEMP_SENSOR_LOW_H),
+            LowTempHighL = double.Parse(_config.LOW_TEMP_SENSOR_HIGH_L),
+            LowTempHighH = double.Parse(_config.LOW_TEMP_SENSOR_HIGH_H),
+            HighTempLowL = double.Parse(_config.HIGH_TEMP_SENSOR_LOW_L),
+            HighTempLowH = double.Parse(_config.HIGH_TEMP_SENSOR_LOW_H),
+            HighTempHighL = double.Parse(_config.HIGH_TEMP_SENSOR_HIGH_L),
+            HighTempHighH = double.Parse(_config.HIGH_TEMP_SENSOR_HIGH_H),
+            PressureLowL = double.Parse(_config.PRESSURE_SENSOR_LOW_L),
+            PressureLowH = double.Parse(_config.PRESSURE_SENSOR_LOW_H),
+            PressureHighL = double.Parse(_config.PRESSURE_SENSOR_HIGH_L),
+            PressureHighH = double.Parse(_config.PRESSURE_SENSOR_HIGH_H)
+        };
+    }
+    
+    private static void EvaluateData(
+        IReadOnlyList<byte> res,
+        Action<string> log,
+        Thresholds config,
+        ref bool hasOutOfRange,
+        StringBuilder outOfRangeLog,
+        DetectionMode mode)
+    {
+        string[] labels = ["HPS", "LPS", "DISCH1", "OIL1", "TO", "EXL1", "EXL2", "EXG1", "EXG2", "SCT", "SCG1", "SCL1"];
+        const int startIndex = 15;
+
+        for (var i = 0; i < labels.Length; i++)
+        {
+            int high = res[startIndex + i * 2];
+            int low = res[startIndex + i * 2 + 1];
+            var raw = (high << 8) | low;
+            var value = i is 0 or 1 ? raw / 1000.0 : raw / 10.0;
+
+            double min, max;
+
+            switch (mode)
+            {
+                case DetectionMode.Low:
+                    (min, max) = i switch
+                    {
+                        0 or 1 => (config.PressureLowL, config.PressureLowH),
+                        2 => (config.HighTempLowL, config.HighTempLowH),
+                        _ => (config.LowTempLowL, config.LowTempLowH)
+                    };
+                    break;
+
+                case DetectionMode.High:
+                    (min, max) = i switch
+                    {
+                        0 or 1 => (config.PressureHighL, config.PressureHighH),
+                        2 => (config.HighTempHighL, config.HighTempHighH),
+                        _ => (config.LowTempHighL, config.LowTempHighH)
+                    };
+                    break;
+
+                case DetectionMode.Mixed:
+                    var isHigh = i % 2 == 1;
+                    (min, max) = i switch
+                    {
+                        0 or 1 => isHigh ? (config.PressureHighL, config.PressureHighH) : (config.PressureLowL, config.PressureLowH),
+                        2 => isHigh ? (config.HighTempHighL, config.HighTempHighH) : (config.HighTempLowL, config.HighTempLowH),
+                        _ => isHigh ? (config.LowTempHighL, config.LowTempHighH) : (config.LowTempLowL, config.LowTempLowH)
+                    };
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
+            }
+
+            var inRange = value >= min && value <= max;
+            log($"{labels[i]}: {value:F3} | Range: [{min}, {max}] | In Range: {inRange}");
+
+            if (inRange) continue;
+            hasOutOfRange = true;
+            outOfRangeLog.AppendLine($"{labels[i]} 超出范围: {value:F3}，应在 [{min}, {max}]");
+        }
+    }
+    
+    private static byte[] BuildCommandWithChecksum(string hexString)
+    {
+        // 1. 去除空格，并按逗号分割
+        var byteStrings = hexString
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim().Replace("0x", "", StringComparison.OrdinalIgnoreCase));
+
+        // 2. 转换为 byte 数组
+        var command = byteStrings
+            .Select(s => Convert.ToByte(s, 16))
+            .ToArray();
+
+        // 3. 计算异或校验
         var checksum = command.Aggregate<byte, byte>(0x00, (current, b) => (byte)(current ^ b));
-        
+
+        // 4. 生成完整命令
         var fullCommand = new byte[command.Length + 1];
         Array.Copy(command, fullCommand, command.Length);
         fullCommand[^1] = checksum;
@@ -294,7 +405,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             Port = 502
         };
 
-        ICommunicationService? service = null;
+        IModbusClient? service;
 
         // 连接 Modbus 设备
         try
@@ -347,7 +458,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             Port = 502
         };
 
-        ICommunicationService? service;
+        IModbusClient? service;
         try
         {
             service = await commManager.GetOrConnectModbusDeviceAsync(device);
@@ -507,7 +618,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     }
 
     // 初始化设备方法
-    private async Task<(ICommunicationService?, ICommunicationService?,ICommunicationService?)> InitializeDevicesAsync(Action<string> log)
+    private async Task<(IModbusClient? s1, IModbusClient? s2, IModbusClient? s3)> InitializeDevicesAsync(Action<string> log)
     {
         var device1 = new Device.ModbusDevice { Name = "AC输入板卡", Ip = "192.168.1.160", Port = 502 };
         var device2 = new Device.ModbusDevice { Name = "DC输入板卡", Ip = "192.168.1.157", Port = 502 };
