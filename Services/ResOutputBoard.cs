@@ -6,7 +6,7 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class ResOutputBoard(ICommunicationService service)
+public class ResOutputBoard(IModbusClient service)
 {
     public async Task CloseOddChannels()
     {

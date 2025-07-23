@@ -9,13 +9,13 @@ namespace VerifyPro.Utils;
 
 public class DeviceCommManager
 {
-    private readonly Dictionary<string, ICommunicationService> _modbusServices = new();
-    private readonly Dictionary<string, ICommunicationService> _testDeviceServices = new();
+    private readonly Dictionary<string, IModbusClient> _modbusServices = new();
+    private readonly Dictionary<string, ITestDeviceService> _testDeviceServices = new();
 
     private string GetKey(string ip, int port) => $"{ip}:{port}";
 
     // 添加或连接 Modbus 设备
-    public async Task<ICommunicationService?> GetOrConnectModbusDeviceAsync(Device.ModbusDevice device)
+    public async Task<IModbusClient?> GetOrConnectModbusDeviceAsync(Device.ModbusDevice device)
     {
         var key = GetKey(device.Ip, device.Port);
 
@@ -32,7 +32,7 @@ public class DeviceCommManager
     }
 
     // 添加或连接 测试设备（HEX）
-    public async Task<ICommunicationService?> GetOrConnectTestDeviceAsync(Device.TestDevice device)
+    public async Task<ITestDeviceService?> GetOrConnectTestDeviceAsync(Device.TestDevice device)
     {
         var key = GetKey(device.Ip, device.Port);
 

@@ -4,9 +4,9 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class VoltageInputBoard(ICommunicationService service)
+public class VoltageInputBoard(IModbusClient service)
 {
-    private readonly ICommunicationService _service = service ?? throw new ArgumentNullException(nameof(service));
+    private readonly IModbusClient _service = service ?? throw new ArgumentNullException(nameof(service));
 
     public ushort[] Gain { get; } = new ushort[16];
     public ushort[] Offset { get; } = new ushort[16];

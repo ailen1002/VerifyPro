@@ -8,7 +8,7 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class ModbusTcpService : ICommunicationService
+public class ModbusTcpService : IModbusClient
 {
     private TcpClient? _client;
     private IModbusMaster? _master;

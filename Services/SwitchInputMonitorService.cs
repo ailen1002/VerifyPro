@@ -43,7 +43,7 @@ public class SwitchInputMonitorService(
             Port = 502
         };
 
-        ICommunicationService? service;
+        IModbusClient? service;
         try
         {
             service = await commManager.GetOrConnectModbusDeviceAsync(device);
