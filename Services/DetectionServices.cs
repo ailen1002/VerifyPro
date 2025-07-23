@@ -30,6 +30,9 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
             var doPassed = await RunDoTestAsync(log, cancellationToken);
             if (!doPassed) return false;
+
+            var aiPassed = await RunAiTestAsync(log);
+            if (!aiPassed) return false;
         }
         catch (Exception ex)
         {
