@@ -31,6 +31,9 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             var doPassed = await RunDoTestAsync(log, cancellationToken);
             if (!doPassed) return false;
 
+            var commPassed = await RunCommTestAsync(log);
+            if (!commPassed) return false;
+            
             var aiPassed = await RunAiTestAsync(log);
             if (!aiPassed) return false;
         }
@@ -113,38 +116,87 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
     }
     
-    public async Task RunCommTestAsync(Action<string> log)
+    public async Task<bool> RunCommTestAsync(Action<string> log)
     {
         log("通讯检测开始...");
 
-        var device = new Device.TestDevice
-        {
-            Name = "测试设备",
-            Ip = "192.168.1.151",
-            Port = 9000
-        };
+        // 准备设备
+        var device1 = new Device.ModbusDevice { Name = "检测板卡", Ip = "192.168.1.151", Port = 502 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
 
-        var service = await commManager.GetOrConnectTestDeviceAsync(device);
-        if (service == null)
+        // 连接设备
+        IModbusClient? service1 = null;
+        ITestDeviceService? service2 = null;
+        
+        try
         {
-            log("设备连接失败，检测中止！");
-            return;
+            service1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
+            service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
+
+            if (service1 == null)
+            {
+                log("Modbus 设备连接失败");
+                return false;
+            }
+
+            if (service2 == null)
+            {
+                log("Test 设备连接失败");
+                return false;
+            }
+
+            log("Modbus Test 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接设备异常: {ex.Message}");
+            return false;
         }
 
-        var packetA = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55 };
-        var packetB = new byte[] { 0x22, 0x33, 0x44, 0x55, 0x66 };
-
-        for (var i = 1; i <= 100; i++)
+        try
         {
-            var packet = i % 2 == 1 ? packetA : packetB;
-
-            log($"第 {i} 次发送：{BitConverter.ToString(packet)}");
-            await service.SendAsync(packet);
-
+            var stopCommand = BuildCommandWithChecksum(_config.SYSTEM_STOP_TxData);
+            log("Tx: " + BitConverter.ToString(stopCommand).Replace("-", " "));
+            var result = await service2.SetTxCommand(stopCommand,15,"系统停止命令");
+            log("Rx: " + BitConverter.ToString(result.Response).Replace("-", " "));
+            if (result.Success)
+            {
+                log($"接收：{result.ActualLength}字节，预期：14字节。");
+                log($"{result.CommandName}发送成功");
+            }
+            else
+            {
+                log($"接收：{result.ActualLength}字节，预期：15字节。");
+                log($"{result.CommandName}发送失败");
+                return false;
+            }
             await Task.Delay(1000);
+            // EEPROM 初始化
+            var eepromInitialCommand = BuildCommandWithChecksum(_config.EEPROM_INITIAL_TxData);
+            log("Tx: " + BitConverter.ToString(eepromInitialCommand).Replace("-", " "));
+            var result1 = await service2.SetTxCommand(eepromInitialCommand,14,"EEPROM初始化");
+            log("Rx: " + BitConverter.ToString(result1.Response).Replace("-", " "));
+            if (result1.Success)
+            {
+                log($"接收：{result1.ActualLength}字节，预期：14字节。");
+                log($"{result1.CommandName}发送成功");
+            }
+            else
+            {
+                log($"接收：{result1.ActualLength}字节，预期：15字节。");
+                log($"{result1.CommandName}发送失败");
+                return false;
+            }
+            
+            log("通讯检测完成。");
+        }
+        catch (Exception ex)
+        {
+            log($"检测异常: {ex.Message}");
+            return false;
         }
 
-        log("通讯检测完成。");
+        return true;
     }
 
     public async Task<bool> RunAiTestAsync(Action<string> log)

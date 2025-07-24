@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using VerifyPro.Interfaces;
+using VerifyPro.Models;
 
 namespace VerifyPro.Services;
 
@@ -52,6 +53,71 @@ public class TestDeviceHexService : ITestDeviceService
 
         return response;
     }
+    
+    public async Task<CommandResult> SetTxCommand(byte[] data, int expectedLength, string commandName = "")
+    {
+        if (_stream == null)
+            throw new InvalidOperationException("未连接");
+
+        await _stream.WriteAsync(data);
+
+        var response = new byte[expectedLength];
+        var totalRead = 0;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            while (totalRead < expectedLength)
+            {
+                var bytesRead = await _stream.ReadAsync(response.AsMemory(totalRead, expectedLength - totalRead), cts.Token);
+                if (bytesRead == 0)
+                    break;
+
+                totalRead += bytesRead;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return new CommandResult
+            {
+                CommandName = commandName,
+                Success = false,
+                Response = response,
+                ActualLength = totalRead
+            };
+        }
+
+        if (totalRead != expectedLength)
+        {
+            return new CommandResult
+            {
+                CommandName = commandName,
+                Success = false,
+                Response = response,
+                ActualLength = totalRead
+            };
+        }
+
+        byte checksum = 0x00;
+        for (var i = 0; i < expectedLength - 1; i++)
+            checksum ^= response[i];
+
+#if DEBUG
+        Console.WriteLine($"[{commandName}] 响应 HEX:");
+        PrintHexWithLineBreaks(response, expectedLength);
+        Console.WriteLine($"最终计算校验: {checksum:X2}");
+        Console.WriteLine($"实际校验位: {response[^1]:X2}");
+#endif
+
+        return new CommandResult
+        {
+            CommandName = commandName,
+            Success = checksum == response[expectedLength - 1],
+            Response = response,
+            ActualLength = totalRead
+        };
+    }
+
 
     public async Task<bool> SystemStop(byte[] data)
     {
@@ -92,7 +158,45 @@ public class TestDeviceHexService : ITestDeviceService
         Console.WriteLine($"最终计算校验: {checksum:X2}");
         Console.WriteLine($"实际校验位: {response[^1]:X2}");
 #endif
-        //return response;
+        return checksum == response[expectedLength - 1];
+    }
+    
+    public async Task<bool> EepromInitial(byte[] data)
+    {
+        if (_stream == null)
+            throw new InvalidOperationException("未连接");
+
+        await _stream.WriteAsync(data);
+        const int expectedLength = 14;
+        var response = new byte[expectedLength];
+        var totalRead = 0;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            while (totalRead < 14)
+            {
+                var bytesRead = await _stream.ReadAsync(response.AsMemory(totalRead, 14 - totalRead), cts.Token);
+                if (bytesRead == 0)
+                    break;
+
+                totalRead += bytesRead;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+
+        if (totalRead != 15)
+            return false;
+
+        byte checksum = 0x00;
+        for (var i = 0; i < 14; i++)
+            checksum ^= response[i];
+#if DEBUG
+        Console.WriteLine($"响应 HEX: {response}");
+#endif
         return checksum == response[expectedLength - 1];
     }
     

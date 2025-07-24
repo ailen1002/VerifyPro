@@ -130,8 +130,15 @@ public class MainTestViewModel : ReactiveObject
     
     private async Task CommTestAsync()
     {
-        DetectLog += "开始通讯检测...\n";
-        await _detectionService.RunCommTestAsync(AppendLog);
+        if (!CanRunTest("Comm")) return;
+        
+        AppendLog("开始通讯检测...");
+        
+        _stateService.StartTest("Comm");
+        
+        var result = await _detectionService.RunCommTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("Comm", result);
     }
 
     private async Task AiTestAsync()
