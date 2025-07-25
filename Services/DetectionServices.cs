@@ -155,38 +155,13 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         try
         {
-            var stopCommand = BuildCommandWithChecksum(_config.SYSTEM_STOP_TxData);
-            log("Tx: " + BitConverter.ToString(stopCommand).Replace("-", " "));
-            var result = await service2.SetTxCommand(stopCommand,15,"系统停止命令");
-            log("Rx: " + BitConverter.ToString(result.Response).Replace("-", " "));
-            if (result.Success)
-            {
-                log($"接收：{result.ActualLength}字节，预期：14字节。");
-                log($"{result.CommandName}发送成功");
-            }
-            else
-            {
-                log($"接收：{result.ActualLength}字节，预期：15字节。");
-                log($"{result.CommandName}发送失败");
+            if (!await ExecuteCommandAsync(service2, _config.SYSTEM_STOP_TxData, 15, "系统停止命令", log))
                 return false;
-            }
+
             await Task.Delay(1000);
-            // EEPROM 初始化
-            var eepromInitialCommand = BuildCommandWithChecksum(_config.EEPROM_INITIAL_TxData);
-            log("Tx: " + BitConverter.ToString(eepromInitialCommand).Replace("-", " "));
-            var result1 = await service2.SetTxCommand(eepromInitialCommand,14,"EEPROM初始化");
-            log("Rx: " + BitConverter.ToString(result1.Response).Replace("-", " "));
-            if (result1.Success)
-            {
-                log($"接收：{result1.ActualLength}字节，预期：14字节。");
-                log($"{result1.CommandName}发送成功");
-            }
-            else
-            {
-                log($"接收：{result1.ActualLength}字节，预期：15字节。");
-                log($"{result1.CommandName}发送失败");
+
+            if (!await ExecuteCommandAsync(service2, _config.EEPROM_INITIAL_TxData, 14, "EEPROM初始化", log))
                 return false;
-            }
             
             log("通讯检测完成。");
         }
@@ -763,5 +738,27 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }).ShowAsync();
         return Task.CompletedTask;
     }
-    
+
+    private static async Task<bool> ExecuteCommandAsync(ITestDeviceService service, string txData, int expectedLength,
+        string commandName, Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+
+        if (result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送成功");
+            return true;
+        }
+        else
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+    }
 }
