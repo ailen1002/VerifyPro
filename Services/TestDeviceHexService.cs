@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
@@ -59,6 +61,8 @@ public class TestDeviceHexService : ITestDeviceService
         if (_stream == null)
             throw new InvalidOperationException("未连接");
 
+        await ClearStreamBufferAsync(_stream);
+        
         await _stream.WriteAsync(data);
 
         var response = new byte[expectedLength];
@@ -257,6 +261,45 @@ public class TestDeviceHexService : ITestDeviceService
             Array.Copy(data, i, segment, 0, length);
 
             Console.WriteLine(BitConverter.ToString(segment));
+        }
+    }
+    
+    private async Task ClearStreamBufferAsync(Stream stream, int bufferSize = 1024, int clearTimeoutMs = 200)
+    {
+        if (!stream.CanRead)
+            return;
+
+        var buffer = new byte[bufferSize];
+        var sw = Stopwatch.StartNew();
+
+        while (sw.ElapsedMilliseconds < clearTimeoutMs)
+        {
+            if (stream is NetworkStream netStream)
+            {
+                if (!netStream.DataAvailable)
+                    break;
+            }
+
+            else if (!stream.CanRead)
+            {
+                break;
+            }
+            
+            if (stream.CanRead)
+            {
+                if (stream is NetworkStream { DataAvailable: false })
+                    break;
+
+                var readTask = stream.ReadAsync(buffer, 0, buffer.Length);
+                var bytesRead = await Task.WhenAny(readTask, Task.Delay(50)) == readTask ? readTask.Result : 0;
+
+                if (bytesRead == 0)
+                    break;
+            }
+            else
+            {
+                break;
+            }
         }
     }
 }
