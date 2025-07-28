@@ -161,7 +161,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             if (!await ExecuteCommandAsync(service2, _config.EEPROM_INITIAL_TxData, 14, "EEPROM初始化", log))
                 return false;
 
-            await Task.Delay(1000);
+            await Task.Delay(4000);
             
             if (!await ExecuteCommandAsync(service2, _config.NOURYOKU_16HP, 16, "能力设置", log))
                 return false;
@@ -172,93 +172,35 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
                 return false;
 
             await Task.Delay(1000);
-            
-            var ready = await WaitForDeviceReadyAsync(
-                service2,
-                _config.SYSTEM_STOP_TxData,
-                15,
-                timeoutMs: 10000,
-                pollingIntervalMs: 1000,
-                commandName: "状态查询",
-                log);
+
+            var ready = await WaitForDeviceReadyAsync(service2,_config.SYSTEM_STOP_TxData,15,10000,1000,"系统停止", log);
 
             if (!ready)
             {
                 log?.Invoke("设备未准备好，超时退出");
                 return false;
             }
+
+            await Task.Delay(1000);
+
+            if (!await ExecuteCommandWithByteCheckAsync(service2, _config.PARAMETER_CHECK_TxData, "0x80", 19, "冷媒种类查询",
+                    Convert.ToByte(_config.READ_REIBAI), "冷媒种类", log))
+                return false;
             
-            if (!await ExecuteCommandAsync(service2, _config.SYSTEM_STOP_TxData, 15, "系统停止命令", log))
+            await Task.Delay(1000);
+
+            if (!await ExecuteCommandWithByteCheckAsync(service2, _config.PARAMETER_CHECK_TxData, "0x81", 19, "马力查询",
+                    Convert.ToByte(_config.READ_NOURYOKU_16HP), "马力", log))
                 return false;
 
             await Task.Delay(1000);
             
-            var a = _config.PARAMETER_CHECK_TxData;
-            var parts = a.Split(", ");
-            parts[^1] = "0x80";
-            var txData = string.Join(", ", parts);
-            var command = BuildCommandWithChecksum(txData);
-            log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
-            var expectedLength = 19;
-            var commandName = "冷媒种类查询";
-            var result = await service2.SetTxCommand(command, expectedLength, commandName);
-            log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
-            
-            if (result.Success)
-            {
-                if (result.Response[15] == Convert.ToByte(_config.READ_REIBAI))
-                {
-                    log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
-                    log($"{result.CommandName}发送成功");
-                    log($"冷媒种类读出值: 0x{result.Response[15]:x2},预期: 0x{Convert.ToByte(_config.READ_REIBAI):x2}");
-                }
-                else
-                {
-                    log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
-                    log($"{result.CommandName}发送成功");
-                    log($"冷媒种类读出值: 0x{result.Response[15]:x2},预期{Convert.ToByte(_config.READ_REIBAI):x2}");
-                    return false;
-                }
-            }
-            else
-            {
-                log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
-                log($"{result.CommandName}发送失败");
+            if (!await ExecuteCommandWithByteCheckAsync(service2, _config.PARAMETER_CHECK_TxData, "0x85", 19, "电源频率查询",
+                    Convert.ToByte(_config.READ_SHUUHASUU), "电源频率", log))
                 return false;
-            }
-
+            
             await Task.Delay(1000);
             
-            parts[^1] = "0x81";
-            txData = string.Join(", ", parts);
-            command = BuildCommandWithChecksum(txData);
-            log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
-            commandName = "能力设置查询";
-            var result1 = await service2.SetTxCommand(command, expectedLength, commandName);
-            log($"Rx: {BitConverter.ToString(result1.Response).Replace("-", " ")}");
-            
-            if (result1.Success)
-            {
-                if (result1.Response[15] == Convert.ToByte(_config.READ_NOURYOKU_16HP))
-                {
-                    log($"接收：{result1.ActualLength}字节，预期：{expectedLength}字节。");
-                    log($"{result1.CommandName}发送成功");
-                    log($"能力设置读出值: 0x{result1.Response[15]:x2},预期: 0x{Convert.ToByte(_config.READ_NOURYOKU_16HP):x2}");
-                }
-                else
-                {
-                    log($"接收：{result1.ActualLength}字节，预期：{expectedLength}字节。");
-                    log($"{result1.CommandName}发送成功");
-                    log($"能力设置读出值: 0x{result1.Response[15]:x2},预期: 0x{Convert.ToByte(_config.READ_NOURYOKU_16HP):x2}");
-                    return false;
-                }
-            }
-            else
-            {
-                log($"接收：{result1.ActualLength}字节，预期：{expectedLength}字节。");
-                log($"{result1.CommandName}发送失败");
-                return false;
-            }
         }
         catch (Exception ex)
         {
@@ -857,13 +799,67 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
     }
 
+    private static async Task<bool> ExecuteCommandWithByteCheckAsync(
+        ITestDeviceService service,
+        string baseTxData,
+        string lastByteHex,
+        int expectedLength,
+        string commandName,
+        byte expectedByteValue,
+        string expectedDescription,
+        Action<string> log)
+    {
+        // 构建 Tx 命令：替换最后一个字节
+        var parts = baseTxData.Split(", ");
+        parts[^1] = lastByteHex;
+        var finalTxData = string.Join(", ", parts);
+
+        var command = BuildCommandWithChecksum(finalTxData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+
+        if (result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送成功");
+
+            if (result.Response.Length > 15)
+            {
+                var actual = result.Response[15];
+                if (actual == expectedByteValue)
+                {
+                    log($"{expectedDescription}读出值: 0x{actual:x2}, 预期: 0x{expectedByteValue:x2}");
+                    return true;
+                }
+                else
+                {
+                    log($"{expectedDescription}读出值: 0x{actual:x2}, 预期: 0x{expectedByteValue:x2}");
+                    return false;
+                }
+            }
+            else
+            {
+                log("返回数据不足，无法读取第15位！");
+                return false;
+            }
+        }
+        else
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+    }
+
     private static async Task<bool> WaitForDeviceReadyAsync(
         ITestDeviceService service,
         string txData,
         int expectedLength,
-        int timeoutMs = 10000,
-        int pollingIntervalMs = 1000,
-        string commandName = "系统停止",
+        int timeoutMs,
+        int pollingIntervalMs,
+        string commandName,
         Action<string>? log = null)
     {
         var start = Environment.TickCount;
