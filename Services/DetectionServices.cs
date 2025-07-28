@@ -836,7 +836,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         var expectedVersion = Convert.ToInt32(miconVersion);
         
         log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
-        log($"CR基板名称：{checkMiconName}；版本号：Version:{checkVersion}，预期名称：{miconName}；版本号：Version:{expectedVersion}");
+        log($"CR基板名称：{checkMiconName}；版本号：Version：{checkVersion}，( 预期名称：{miconName}；版本号：Version：{expectedVersion} )");
 
         if (checkMiconName != miconName)
         {
