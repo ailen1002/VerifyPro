@@ -200,7 +200,10 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
                 return false;
             
             await Task.Delay(1000);
-            
+
+            if (!await VersionCheckAsync(service2, _config.CR_MICON_VERISON_TxData, 32, "CR基板程序版本号",
+                    _config.CR_MICON_NAME, _config.CR_MICON_VERSION, log))
+                return false;
         }
         catch (Exception ex)
         {
@@ -791,14 +794,67 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             log($"{result.CommandName}发送成功");
             return true;
         }
-        else
+
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"{result.CommandName}发送失败");
+        return false;
+    }
+
+    private static async Task<bool> VersionCheckAsync(
+        ITestDeviceService service, 
+        string txData, 
+        int expectedLength,
+        string commandName, 
+        string miconName, 
+        string miconVersion, 
+        Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
         {
             log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
             log($"{result.CommandName}发送失败");
             return false;
         }
+        
+        var checkMiconName = string.Empty;
+        for (var i = 13; i <= 28; i++)
+        {
+            var c = result.Response[i];
+            if (c is >= 0x20 and <= 0x7E)
+                checkMiconName += (char)c;
+        }
+        checkMiconName = checkMiconName.TrimEnd();
+        miconName = miconName.TrimEnd();
+        
+        var checkVersion = result.Response[29] * 256 + result.Response[30];
+        var expectedVersion = Convert.ToInt32(miconVersion);
+        
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"CR基板名称：{checkMiconName}；版本号：Version:{checkVersion}，预期名称：{miconName}；版本号：Version:{expectedVersion}");
+
+        if (checkMiconName != miconName)
+        {
+            log("CR基板 MICON 名称不匹配");
+            return false;
+        }
+
+        if (checkVersion != expectedVersion)
+        {
+            log("CR基板 MICON 版本不匹配");
+            return false;
+        }
+
+        log($"{result.CommandName}发送成功");
+        return true;
     }
 
+        
     private static async Task<bool> ExecuteCommandWithByteCheckAsync(
         ITestDeviceService service,
         string baseTxData,
@@ -878,9 +934,5 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         return false;
     }
-    // private static async Task<bool> ParameterCheckAsync(ITestDeviceService service, string txData, int expectedLength,
-    //     string commandName, Action<string> log)
-    // {
-    //
-    // }
+    
 }
