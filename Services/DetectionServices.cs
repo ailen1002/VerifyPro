@@ -52,7 +52,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         log("模拟量检测开始...");
 
-        var device = new Device.ModbusDevice
+        var device = new Device.ModbusTcpDevice
         {
             Name = "电压检测板卡",
             Ip = "192.168.1.155",
@@ -61,7 +61,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         try
         {
-            var service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            var service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
             if (service == null)
             {
                 log("Modbus 电压板卡连接失败");
@@ -119,16 +119,16 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     public async Task<bool> RunCommTestAsync(Action<string> log)
     {
         // 准备设备
-        var device1 = new Device.ModbusDevice { Name = "检测板卡", Ip = "192.168.1.151", Port = 502 };
+        var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.151", Port = 502 };
         var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
 
         // 连接设备
-        IModbusClient? service1 = null;
+        IModbusTcpClient? service1 = null;
         ITestDeviceService? service2 = null;
         
         try
         {
-            service1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
+            service1 = await commManager.GetOrConnectModbusTcpDeviceAsync(device1);
             service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
 
             if (service1 == null)
@@ -204,6 +204,11 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             if (!await VersionCheckAsync(service2, _config.CR_MICON_VERISON_TxData, 32, "CR基板程序版本号",
                     _config.CR_MICON_NAME, _config.CR_MICON_VERSION, log))
                 return false;
+
+            await Task.Delay(1000);
+
+            if (!await RunModbusRtuAsync(log))
+                return false;
         }
         catch (Exception ex)
         {
@@ -219,16 +224,16 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         log("模拟量检测开始...");
 
         // 准备设备
-        var device1 = new Device.ModbusDevice { Name = "检测板卡", Ip = "192.168.1.150", Port = 502 };
+        var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.150", Port = 502 };
         var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
 
         // 连接设备
-        IModbusClient? service1 = null;
+        IModbusTcpClient? service1 = null;
         ITestDeviceService? service2 = null;
 
         try
         {
-            service1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
+            service1 = await commManager.GetOrConnectModbusTcpDeviceAsync(device1);
             service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
 
             if (service1 == null)
@@ -316,7 +321,51 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         return true;
     }
-    
+
+    public async Task<bool> RunModbusRtuAsync(Action<string> log)
+    {
+        log("ModbusRtu测试开始...");
+        
+        var device = new Device.ModbusRtuDevice { Name = "Rtu设备", SerialPort = "COM3", Baud = 19200 , SlaveId = 1};
+        
+        IModbusRtuClient? service = null;
+
+        try
+        {
+            service = await commManager.GetOrConnectModbusRtuDeviceAsync(device);
+            
+            if (service == null)
+            {
+                log("Modbus 设备连接失败");
+                return false;
+            }
+            
+            log("Modbus Test 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接设备异常: {ex.Message}");
+            throw;
+        }
+
+        try
+        {
+            var modbusRtuController = new ModbusRtuController(service);
+            log("正向上电");
+            await modbusRtuController.Forward.On();
+            var ac200Forward = modbusRtuController.Ac200Forward.Read();
+            Console.WriteLine(ac200Forward);
+            await modbusRtuController.Forward.Off();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+
+        return true;
+    }
+
     private static async Task<byte[]?> RetryAnalogDetectionAsync(
         ITestDeviceService service,
         byte[] command,
@@ -468,19 +517,19 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         log("DI 检测开始...");
 
-        var device = new Device.ModbusDevice
+        var device = new Device.ModbusTcpDevice
         {
             Name = "继电器输出板卡",
             Ip = "192.168.1.153",
             Port = 502
         };
 
-        IModbusClient? service;
+        IModbusTcpClient? service;
 
         // 连接 Modbus 设备
         try
         {
-            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
 
             if (service == null)
             {
@@ -521,17 +570,17 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         log("DO 检测开始...");
 
-        var device = new Device.ModbusDevice
+        var device = new Device.ModbusTcpDevice
         {
             Name = "开关量输入板卡",
             Ip = "192.168.1.162",
             Port = 502
         };
 
-        IModbusClient? service;
+        IModbusTcpClient? service;
         try
         {
-            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
             if (service == null)
             {
                 log("Modbus 设备连接失败！");
@@ -688,28 +737,28 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     }
 
     // 初始化设备方法
-    private async Task<(IModbusClient? s1, IModbusClient? s2, IModbusClient? s3)> InitializeDevicesAsync(Action<string> log)
+    private async Task<(IModbusTcpClient? s1, IModbusTcpClient? s2, IModbusTcpClient? s3)> InitializeDevicesAsync(Action<string> log)
     {
-        var device1 = new Device.ModbusDevice { Name = "AC输入板卡", Ip = "192.168.1.160", Port = 502 };
-        var device2 = new Device.ModbusDevice { Name = "DC输入板卡", Ip = "192.168.1.157", Port = 502 };
-        var device3 = new Device.ModbusDevice { Name = "继电器输出板卡", Ip = "192.168.1.153", Port = 502 };
+        var device1 = new Device.ModbusTcpDevice { Name = "AC输入板卡", Ip = "192.168.1.160", Port = 502 };
+        var device2 = new Device.ModbusTcpDevice { Name = "DC输入板卡", Ip = "192.168.1.157", Port = 502 };
+        var device3 = new Device.ModbusTcpDevice { Name = "继电器输出板卡", Ip = "192.168.1.153", Port = 502 };
 
         try
         {
-            var s1 = await commManager.GetOrConnectModbusDeviceAsync(device1);
+            var s1 = await commManager.GetOrConnectModbusTcpDeviceAsync(device1);
             if (s1 == null)
             {
                 log("AC输入板卡连接失败！");
                 return (null, null,null);
             }
 
-            var s2 = await commManager.GetOrConnectModbusDeviceAsync(device2);
+            var s2 = await commManager.GetOrConnectModbusTcpDeviceAsync(device2);
             if (s2 == null)
             {
                 log("DC输入板卡连接失败！");
                 return (null, null,null);
             }
-            var s3 = await commManager.GetOrConnectModbusDeviceAsync(device3);
+            var s3 = await commManager.GetOrConnectModbusTcpDeviceAsync(device3);
             if (s3 == null)
             {
                 log("DC输入板卡连接失败！");
