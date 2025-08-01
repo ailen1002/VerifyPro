@@ -7,9 +7,9 @@ namespace VerifyPro.Services;
 
 public class RelayOutputBoard
 {
-    private readonly IModbusClient _service;
+    private readonly IModbusTcpClient _service;
 
-    public RelayOutputBoard(IModbusClient service)
+    public RelayOutputBoard(IModbusTcpClient service)
     {
         _service = service;
 

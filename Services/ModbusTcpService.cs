@@ -8,7 +8,7 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class ModbusTcpService : IModbusClient
+public class ModbusTcpService : IModbusTcpClient
 {
     private TcpClient? _client;
     private IModbusMaster? _master;
@@ -49,7 +49,7 @@ public class ModbusTcpService : IModbusClient
         };
     }
 
-    private async Task<byte[]> HandleReadHoldingRegistersAsync(byte[] data)
+    private async Task<byte[]> HandleReadHoldingRegistersAsync(IReadOnlyList<byte> data)
     {
         var start = (ushort)(data[1] << 8 | data[2]);
         var count = (ushort)(data[3] << 8 | data[4]);
@@ -58,7 +58,7 @@ public class ModbusTcpService : IModbusClient
         return values.SelectMany(BitConverter.GetBytes).ToArray();
     }
 
-    private async Task<byte[]> HandleReadInputRegistersAsync(byte[] data)
+    private async Task<byte[]> HandleReadInputRegistersAsync(IReadOnlyList<byte> data)
     {
         var start = (ushort)(data[1] << 8 | data[2]);
         var count = (ushort)(data[3] << 8 | data[4]);

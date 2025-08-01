@@ -4,9 +4,9 @@ using VerifyPro.Interfaces;
 
 namespace VerifyPro.Services;
 
-public class SwitchInputBoard(IModbusClient service)
+public class SwitchInputBoard(IModbusTcpClient service)
 {
-    private readonly IModbusClient _service = service ?? throw new ArgumentNullException(nameof(service));
+    private readonly IModbusTcpClient _service = service ?? throw new ArgumentNullException(nameof(service));
     private readonly bool[] _inputs = new bool[16];
     
     public async Task RefreshAsync()

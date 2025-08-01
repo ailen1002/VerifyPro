@@ -36,17 +36,17 @@ public class SwitchInputMonitorService(
 
     private async Task MonitorLoop(CancellationToken cancellationToken)
     {
-        var device = new Device.ModbusDevice
+        var device = new Device.ModbusTcpDevice
         {
             Name = "开关量输入板卡",
             Ip = "192.168.1.162",
             Port = 502
         };
 
-        IModbusClient? service;
+        IModbusTcpClient? service;
         try
         {
-            service = await commManager.GetOrConnectModbusDeviceAsync(device);
+            service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
             if (service == null)
             {
                 log("Modbus 设备开关量输入板卡连接失败！");

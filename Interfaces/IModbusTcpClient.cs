@@ -2,7 +2,7 @@
 
 namespace VerifyPro.Interfaces;
 
-public interface IModbusClient
+public interface IModbusTcpClient
 {
     Task<bool> ConnectAsync(string ip, int port);
     Task DisconnectAsync();
