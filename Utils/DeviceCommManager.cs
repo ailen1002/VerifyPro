@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using VerifyPro.Interfaces;
 using VerifyPro.Models;
@@ -9,24 +8,42 @@ namespace VerifyPro.Utils;
 
 public class DeviceCommManager
 {
-    private readonly Dictionary<string, IModbusClient> _modbusServices = new();
+    private readonly Dictionary<string, IModbusTcpClient> _modbusTcpServices = new();
+    private readonly Dictionary<string, IModbusRtuClient> _modbusRtuServices = new();
     private readonly Dictionary<string, ITestDeviceService> _testDeviceServices = new();
 
-    private string GetKey(string ip, int port) => $"{ip}:{port}";
+    private static string GetKey(string ip, int port) => $"{ip}:{port}";
 
-    // 添加或连接 Modbus 设备
-    public async Task<IModbusClient?> GetOrConnectModbusDeviceAsync(Device.ModbusDevice device)
+    // 添加或连接 ModbusTcp 设备
+    public async Task<IModbusTcpClient?> GetOrConnectModbusTcpDeviceAsync(Device.ModbusTcpDevice device)
     {
         var key = GetKey(device.Ip, device.Port);
 
-        if (_modbusServices.TryGetValue(key, out var existingService) && existingService.IsConnected)
+        if (_modbusTcpServices.TryGetValue(key, out var existingService) && existingService.IsConnected)
             return existingService;
 
         var service = new ModbusTcpService();
         var connected = await service.ConnectAsync(device.Ip, device.Port);
 
         if (!connected) return null;
-        _modbusServices[key] = service;
+        _modbusTcpServices[key] = service;
+        
+        return service;
+    }
+    
+    // 添加或连接 ModbusTcp 设备
+    public async Task<IModbusRtuClient?> GetOrConnectModbusRtuDeviceAsync(Device.ModbusRtuDevice device)
+    {
+        var key = GetKey(device.SerialPort, device.Baud);
+
+        if (_modbusRtuServices.TryGetValue(key, out var existingService) && existingService.IsConnected)
+            return existingService;
+
+        var service = new ModbusRtuService();
+        var connected = await service.ConnectAsync(device.SerialPort, device.Baud, device.SlaveId);
+
+        if (!connected) return null;
+        _modbusRtuServices[key] = service;
         
         return service;
     }
@@ -50,13 +67,17 @@ public class DeviceCommManager
 
     public async Task DisconnectAllAsync()
     {
-        foreach (var svc in _modbusServices.Values)
+        foreach (var svc in _modbusTcpServices.Values)
+            await svc.DisconnectAsync();
+        
+        foreach (var svc in _modbusRtuServices.Values)
             await svc.DisconnectAsync();
 
         foreach (var svc in _testDeviceServices.Values)
             await svc.DisconnectAsync();
 
-        _modbusServices.Clear();
+        _modbusTcpServices.Clear();
+        _modbusRtuServices.Clear();
         _testDeviceServices.Clear();
     }
 }
