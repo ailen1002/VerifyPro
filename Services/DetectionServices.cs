@@ -234,6 +234,12 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             if (!await RemoteControlCommunication(service2, _config.RC_CHECK_TxData, 23, "遥控器连接到端子台测试",
                     _config.RC_CHECK_RxData, log))
                 return false;
+            
+            await Task.Delay(1000);
+            
+            if (!await HicVersionCheckAsync(service2, _config.HIC_MICON_VERISON_TxData, 20, "HIC基板程序版本号",
+                    _config.HIC_MICON_VERSION, _config.FAN_MICON_VERSION, log))
+                return false;
         }
         catch (Exception ex)
         {
@@ -877,6 +883,51 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         if (checkVersion != expectedVersion)
         {
             log("CR基板 MICON 版本不匹配");
+            return false;
+        }
+
+        log($"{result.CommandName}发送成功");
+        return true;
+    }
+    
+    private static async Task<bool> HicVersionCheckAsync(
+        ITestDeviceService service, 
+        string txData, 
+        int expectedLength,
+        string commandName, 
+        string hicMiconVersion, 
+        string fanMiconVersion, 
+        Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+        
+        var checkHicVersion = result.Response[15] * 256 + result.Response[16];
+        var checkFanVersion = result.Response[17] * 256 + result.Response[18];
+        
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"HIC基板版本号：Version：{checkHicVersion}，预期版本号：Version：{hicMiconVersion} )");
+        log($"HIC基板版本号：Version：{checkFanVersion}，预期版本号：Version：{fanMiconVersion} )");
+
+        if (checkHicVersion != Convert.ToInt16(hicMiconVersion))
+        {
+            log("HIC基板版本号与预期不匹配");
+            return false;
+        }
+
+        if (checkFanVersion != Convert.ToInt16(fanMiconVersion))
+        {
+            log("FAN基板版本号与预期不匹配");
             return false;
         }
 
