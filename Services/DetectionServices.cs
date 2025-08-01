@@ -119,16 +119,16 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     public async Task<bool> RunCommTestAsync(Action<string> log)
     {
         // 准备设备
-        var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.151", Port = 502 };
+        var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
         var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
 
         // 连接设备
-        IModbusTcpClient? service1 = null;
+        IModbusRtuClient? service1 = null;
         ITestDeviceService? service2 = null;
         
         try
         {
-            service1 = await commManager.GetOrConnectModbusTcpDeviceAsync(device1);
+            service1 = await commManager.GetOrConnectModbusRtuDeviceAsync(device1);
             service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
 
             if (service1 == null)
@@ -153,6 +153,8 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         try
         {
+            var modbusRtuController = new ModbusRtuController(service1);
+            
             if (!await ExecuteCommandAsync(service2, _config.SYSTEM_STOP_TxData, 15, "系统停止命令", log))
                 return false;
 
@@ -201,13 +203,36 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             await Task.Delay(1000);
 
-            if (!await VersionCheckAsync(service2, _config.CR_MICON_VERISON_TxData, 32, "CR基板程序版本号",
+            if (!await CrVersionCheckAsync(service2, _config.CR_MICON_VERISON_TxData, 32, "CR基板程序版本号",
                     _config.CR_MICON_NAME, _config.CR_MICON_VERSION, log))
                 return false;
 
             await Task.Delay(1000);
 
-            if (!await RunModbusRtuAsync(log))
+            await modbusRtuController.RemoteControlA.On();
+            
+            await Task.Delay(1000);
+            
+            await modbusRtuController.RemoteControlB.On();
+            
+            await Task.Delay(1000);
+            
+            if (!await RemoteControlCommunication(service2, _config.RC_CHECK_TxData, 23, "遥控器连接到230测试",
+                    _config.RC_CHECK_RxData, log))
+                return false;
+            
+            await Task.Delay(1000);
+            
+            await modbusRtuController.RemoteControlA.Off();
+            
+            await Task.Delay(1000);
+            
+            await modbusRtuController.RemoteControlB.Off();
+            
+            await Task.Delay(1000);
+            
+            if (!await RemoteControlCommunication(service2, _config.RC_CHECK_TxData, 23, "遥控器连接到端子台测试",
+                    _config.RC_CHECK_RxData, log))
                 return false;
         }
         catch (Exception ex)
@@ -321,51 +346,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
         return true;
     }
-
-    public async Task<bool> RunModbusRtuAsync(Action<string> log)
-    {
-        log("ModbusRtu测试开始...");
-        
-        var device = new Device.ModbusRtuDevice { Name = "Rtu设备", SerialPort = "COM3", Baud = 19200 , SlaveId = 1};
-        
-        IModbusRtuClient? service = null;
-
-        try
-        {
-            service = await commManager.GetOrConnectModbusRtuDeviceAsync(device);
-            
-            if (service == null)
-            {
-                log("Modbus 设备连接失败");
-                return false;
-            }
-            
-            log("Modbus Test 设备连接成功");
-        }
-        catch (Exception ex)
-        {
-            log($"连接设备异常: {ex.Message}");
-            throw;
-        }
-
-        try
-        {
-            var modbusRtuController = new ModbusRtuController(service);
-            log("正向上电");
-            await modbusRtuController.Forward.On();
-            var ac200Forward = modbusRtuController.Ac200Forward.Read();
-            Console.WriteLine(ac200Forward);
-            await modbusRtuController.Forward.Off();
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            throw;
-        }
-
-        return true;
-    }
-
+    
     private static async Task<byte[]?> RetryAnalogDetectionAsync(
         ITestDeviceService service,
         byte[] command,
@@ -849,7 +830,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         return false;
     }
 
-    private static async Task<bool> VersionCheckAsync(
+    private static async Task<bool> CrVersionCheckAsync(
         ITestDeviceService service, 
         string txData, 
         int expectedLength,
@@ -900,6 +881,35 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
 
         log($"{result.CommandName}发送成功");
+        return true;
+    }
+
+    private static async Task<bool> RemoteControlCommunication(ITestDeviceService service, 
+        string txData, 
+        int expectedLength,
+        string commandName,
+        string rxData, 
+        Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+        
+        var receive = $"0x{result.Response[18]:X2} 0x{result.Response[19]:X2} 0x{result.Response[20]:X2} 0x{result.Response[21]:X2}";
+        
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"接收数据：{receive}，预期数据：{rxData}。");
+        log($"{commandName}通信确认成功。");
+        
         return true;
     }
 
