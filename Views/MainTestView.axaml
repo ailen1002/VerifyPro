@@ -245,9 +245,10 @@
             Grid.Row="4"
             Margin="5,0,5,5">
             <ScrollViewer
+                x:Name="DetectLogScrollViewer"
                 Background="White"
-                HorizontalScrollBarVisibility="Auto"
                 Margin="10"
+                HorizontalScrollBarVisibility="Auto"
                 VerticalScrollBarVisibility="Auto">
                 <TextBlock
                     FontSize="16"
