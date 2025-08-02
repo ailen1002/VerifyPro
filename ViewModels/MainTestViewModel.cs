@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Reactive;
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,7 +65,10 @@ public class MainTestViewModel : ReactiveObject
 
         // 初始化状态
         _currentState = _stateService.CurrentState;
-
+        
+        // 初始化
+        InitializeProductKey();
+        
         // 启动监控服务
         var switchInputMonitorService = new SwitchInputMonitorService(
             commManager,
@@ -93,6 +97,14 @@ public class MainTestViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _detectLog, value);
     }
     public string? ModelName => ConfigFileVm.Config?.Modelname;
+    
+    // 序列号
+    private string _productKey = "";
+    public string ProductKey
+    {
+        get => _productKey;
+        set => this.RaiseAndSetIfChanged(ref _productKey, value);
+    }
     public ReactiveCommand<Unit, Unit> StartTestCommand { get; }
     public ReactiveCommand<Unit, Unit> VoltageTestCommand { get; }
     public ReactiveCommand<Unit, Unit> CommTestCommand { get; }
@@ -188,14 +200,78 @@ public class MainTestViewModel : ReactiveObject
         }
     }
     
+    private void InitializeProductKey()
+    {
+        if (string.IsNullOrWhiteSpace(ModelName))
+            throw new InvalidOperationException("ModelName 不能为空");
+
+        var datePart = DateTime.Now.ToString("yyyyMMdd");
+        var modelFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModelName);
+        var dateFolderPath = Path.Combine(modelFolderPath, datePart);
+
+        var serialNumber = 1;
+        if (Directory.Exists(dateFolderPath))
+        {
+            var existingFiles = Directory.GetFiles(dateFolderPath, "*.csv");
+            serialNumber = existingFiles.Length + 1;
+        }
+
+        ProductKey = $"{datePart}{serialNumber:D8}";
+    }
+    
     private void ExportResults()
     {
-        const string filePath = "检测结果.csv";
-        _exportService.ExportToCsv(_detectLog, filePath);
-        AppendLog($"结果已导出到 {filePath}");
-        _stateService.SaveResults();
+        if (string.IsNullOrWhiteSpace(ModelName)) return;
+
+        var datePart = DateTime.Now.ToString("yyyyMMdd");
+        var modelFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModelName);
+        var dateFolderPath = Path.Combine(modelFolderPath, datePart);
+
+        if (!Directory.Exists(dateFolderPath))
+        {
+            Directory.CreateDirectory(dateFolderPath);
+        }
+
+        var filePath = Path.Combine(dateFolderPath, $"{ProductKey}.csv");
+
+        var header = CreateCenteredLine(ProductKey);
+        var footer = CreateCenteredLine(CurrentState.ToString() ?? "Unknown");
         
+        var content = $"{header}\n{_detectLog}\n{footer}";
+
+        _exportService.ExportToCsv(content, filePath);
+
+        // 序列号自增
+        if (ProductKey.Length == 16)
+        {
+            var prefix = ProductKey[..8]; // 日期
+            var serialStr = ProductKey[8..]; // 序号
+            if (int.TryParse(serialStr, out var serialNumber))
+            {
+                serialNumber += 1;
+                ProductKey = prefix + serialNumber.ToString("D8");
+            }
+        }
+
+        _stateService.SaveResults();
         DetectLog = string.Empty;
+    }
+    private static string CreateCenteredLine(string content, int totalWidth = 60, char fillChar = '*')
+    {
+        if (string.IsNullOrEmpty(content))
+            return new string(fillChar, totalWidth);
+
+        content = $"【{content}】";
+        var contentLength = content.Length;
+
+        if (contentLength >= totalWidth)
+            return content;
+
+        var padding = totalWidth - contentLength;
+        var left = padding / 2;
+        var right = padding - left;
+
+        return new string(fillChar, left) + content + new string(fillChar, right);
     }
     
     private void CancelDoTest()

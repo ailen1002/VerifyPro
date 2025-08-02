@@ -49,11 +49,8 @@ public class SwitchInputMonitorService(
             service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
             if (service == null)
             {
-                log("Modbus 设备开关量输入板卡连接失败！");
                 return;
             }
-
-            log("Modbus 设备开关量输入板卡连接成功");
         }
         catch (Exception ex)
         {
