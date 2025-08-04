@@ -541,25 +541,115 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             log($"连接设备异常: {ex.Message}");
             return false;
         }
-
-        // 控制输出板
+        
         try
         {
             var outputBoard = new RelayOutputBoard(service);
-
-            log("打开 AP 开关...");
-            await outputBoard.ApSwitch.On();
-
-            await Task.Delay(5000);
-
-            log("关闭 AP 开关...");
-            await outputBoard.ApSwitch.Off();
-
-            log("DI 检测完成。");
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "ALL OFF", _config.DI_Normal,
+                log))
+                return false;
+            
+            log("将CR基板的SILENT连接器置于短路状态。");
+            await outputBoard.SilentSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "SILENT输入短路", _config.DI_Silent,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的SILENT连接器置于打开状态。");
+            await outputBoard.SilentSwitch.Off();
+            
+            log("将CR基板的SNOW连接器置于短路状态。");
+            await outputBoard.SnowSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "SNOW输入短路", _config.DI_Sonw,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的SNOW连接器置于打开状态。");
+            await outputBoard.SnowSwitch.Off();
+            
+            log("将CR基板的TEST连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "TEST输入短路", _config.DI_Test,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的TEST连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
+            
+            log("将CR基板的AP连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "AP输入短路", _config.DI_Ap,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的AP连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
+            
+            log("将CR基板的DRM1连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "DRM1输入短路", _config.DI_DRM1,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的DRM1连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
+            
+            log("将CR基板的DRM2连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "DRM2输入短路", _config.DI_DRM2,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的DRM2连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
+            
+            log("将CR基板的ForcedStop连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "ForcedStop输入短路", _config.DI_ForcedStop,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的ForcedStop连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
+            
+            log("将CR基板的NumComp连接器置于短路状态。");
+            await outputBoard.TestSwitch.On();
+            await Task.Delay(1000);
+            
+            if(!await DigitalInputCheckCommand(service2, _config.DI_CHECK_TxData, 24, "NumComp输入短路", _config.DI_NumComp,
+                   log))
+                return false;
+            
+            await Task.Delay(1000);
+            log("将CR基板的NumComp连接器置于打开状态。");
+            await outputBoard.TestSwitch.Off();
         }
         catch (Exception ex)
         {
             log($"控制失败: {ex.Message}");
+            return false;
         }
 
         return true;
@@ -1031,6 +1121,50 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
     }
 
+    private static async Task<bool> DigitalInputCheckCommand(ITestDeviceService service, string txData, int expectedLength, string commandName, string expectedByteValue, Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+        
+        var checkValue = result.Response.Skip(15).Take(8).ToArray();
+        
+        var expectedBytes = expectedByteValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Convert.ToByte(s.Trim().Replace("0x", ""), 16))
+            .ToArray();
+
+        var ret = string.Join(" ", checkValue.Select(b => b.ToString("X2")));
+        var cleaned = string.Join(" ", expectedBytes.Select(b => b.ToString("X2")));
+
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"接收数据：{ret}，预期：{cleaned}");
+
+        if (checkValue.Length != expectedBytes.Length)
+        {
+            log("长度不匹配，数据校验失败");
+            return false;
+        }
+
+        for (var i = 0; i < checkValue.Length; i++)
+        {
+            if (checkValue[i] == expectedBytes[i]) continue;
+            log($"数据不匹配：第{i + 1}位接收={checkValue[i]:X2}，预期={expectedBytes[i]:X2}");
+            return false;
+        }
+
+        log($"{result.CommandName}发送成功，数据校验通过");
+        return true;
+    }
     private static async Task<bool> WaitForDeviceReadyAsync(
         ITestDeviceService service,
         string txData,
