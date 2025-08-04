@@ -168,8 +168,15 @@ public class MainTestViewModel : ReactiveObject
     
     private async Task DiTestAsync()
     {
-        DetectLog += "开始DI检测...\n";
-        await _detectionService.RunDiTestAsync(AppendLog);
+        if (!CanRunTest("DI")) return;
+        
+        AppendLog("开始DI检测...\n");
+        
+        _stateService.StartTest("DI");
+        
+        var result = await _detectionService.RunDiTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("DI", result);
     }
     
     private async Task DoTestAsync()

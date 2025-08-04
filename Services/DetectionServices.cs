@@ -36,6 +36,9 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             var aiPassed = await RunAiTestAsync(log);
             if (!aiPassed) return false;
+
+            var diPassed = await RunDiTestAsync(log);
+            if (!diPassed) return false;
         }
         catch (Exception ex)
         {
@@ -500,7 +503,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         return fullCommand;
     }
     
-    public async Task RunDiTestAsync(Action<string> log)
+    public async Task<bool> RunDiTestAsync(Action<string> log)
     {
         log("DI 检测开始...");
 
@@ -510,26 +513,33 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             Ip = "192.168.1.153",
             Port = 502
         };
-
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        
         IModbusTcpClient? service;
-
+        ITestDeviceService? service2 = null;
         // 连接 Modbus 设备
         try
         {
             service = await commManager.GetOrConnectModbusTcpDeviceAsync(device);
-
+            service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
+            
             if (service == null)
             {
                 log("Modbus 设备连接失败！");
-                return;
+                return false;
+            }
+            if (service2 == null)
+            {
+                log("Test 设备连接失败！");
+                return false;
             }
 
             log("Modbus 设备连接成功");
         }
         catch (Exception ex)
         {
-            log($"连接 Modbus 设备异常: {ex.Message}");
-            return;
+            log($"连接设备异常: {ex.Message}");
+            return false;
         }
 
         // 控制输出板
@@ -551,6 +561,8 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         {
             log($"控制失败: {ex.Message}");
         }
+
+        return true;
     }
 
     public async Task RunSwitchInputAsync(Action<string> log, CancellationToken cancellationToken)
