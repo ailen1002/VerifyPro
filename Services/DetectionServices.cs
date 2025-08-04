@@ -39,6 +39,9 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
             var diPassed = await RunDiTestAsync(log);
             if (!diPassed) return false;
+
+            var ledPassed = await RunLedTestAsync(log);
+            if (!ledPassed) return false;
         }
         catch (Exception ex)
         {
@@ -652,6 +655,90 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             return false;
         }
 
+        return true;
+    }
+
+    public async Task<bool> RunLedTestAsync(Action<string> log)
+    {
+        // 准备设备
+        var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+
+        // 连接设备
+        IModbusRtuClient? service1 = null;
+        ITestDeviceService? service2 = null;
+        
+        try
+        {
+            service1 = await commManager.GetOrConnectModbusRtuDeviceAsync(device1);
+            service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
+
+            if (service1 == null)
+            {
+                log("Modbus 设备连接失败");
+                return false;
+            }
+
+            if (service2 == null)
+            {
+                log("Test 设备连接失败");
+                return false;
+            }
+
+            log("Modbus Test 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接设备异常: {ex.Message}");
+            return false;
+        }
+
+        try
+        {
+            if (!await ExecuteCommandAsync(service2, _config.SYSTEM_STOP_TxData, 15, "系统停止命令", log))
+                return false;
+
+            await Task.Delay(1000);
+
+            if (!await ExecuteCommandAsync(service2, _config.EEPROM_INITIAL_TxData, 14, "EEPROM初始化", log))
+                return false;
+
+            await Task.Delay(4000);
+
+            if (!await ExecuteCommandAsync(service2, _config.NOURYOKU_0HP, 16, "能力设置", log))
+                return false;
+
+            await Task.Delay(1000);
+
+            if (!await ExecuteCommandAsync(service2, _config.SYSTEM_REBOOT_TxData, 14, "系统重启", log))
+                return false;
+
+            await Task.Delay(1000);
+
+            var ready = await WaitForDeviceReadyAsync(service2, _config.SYSTEM_STOP_TxData, 15, 10000, 1000, "系统停止",
+                log);
+
+            if (!ready)
+            {
+                log?.Invoke("设备未准备好，超时退出");
+                return false;
+            }
+
+            await Task.Delay(1000);
+            
+            if (!await ExecuteCommandWithByteCheckAsync(service2, _config.PARAMETER_CHECK_TxData, "0x81", 19, "马力查询",
+                    Convert.ToByte(_config.READ_NOURYOKU_0HP), "马力", log))
+                return false;
+
+            await Task.Delay(1000);
+            
+            //断电，电容放电
+        }
+        catch (Exception ex)
+        {
+            log($"LED检测异常: {ex.Message}");
+            return false;
+        }
         return true;
     }
 
