@@ -1057,12 +1057,35 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             return false;
         }
         
-        var receive = $"0x{result.Response[18]:X2} 0x{result.Response[19]:X2} 0x{result.Response[20]:X2} 0x{result.Response[21]:X2}";
+        var receivedBytes = result.Response.Skip(18).Take(4).ToArray();
         
+        var expectedBytes = rxData
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Convert.ToByte(s.Replace("0x", ""), 16))
+            .ToArray();
+
+        var receiveStr = string.Join(" ", receivedBytes.Select(b => $"0x{b:X2}"));
+        var expectedStr = string.Join(" ", expectedBytes.Select(b => $"0x{b:X2}"));
+
         log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
-        log($"接收数据：{receive}，预期数据：{rxData}。");
+        log($"接收数据：{receiveStr}，预期数据：{expectedStr}");
+
+        // 比较长度
+        if (receivedBytes.Length != expectedBytes.Length)
+        {
+            log("接收数据长度与预期不一致。");
+            return false;
+        }
+
+        // 逐位比较
+        for (var i = 0; i < receivedBytes.Length; i++)
+        {
+            if (receivedBytes[i] == expectedBytes[i]) continue;
+            log($"数据不匹配：第{i + 1}位 接收=0x{receivedBytes[i]:X2}，预期=0x{expectedBytes[i]:X2}");
+            return false;
+        }
+
         log($"{commandName}通信确认成功。");
-        
         return true;
     }
 
