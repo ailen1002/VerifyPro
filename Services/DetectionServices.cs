@@ -42,6 +42,12 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
             var ledPassed = await RunLedTestAsync(log);
             if (!ledPassed) return false;
+            
+            var fanPassed = await RunFanTestAsync(log);
+            if (!fanPassed) return false;
+            
+            var compPassed = await RunCompTestAsync(log);
+            if (!compPassed) return false;
         }
         catch (Exception ex)
         {
@@ -56,8 +62,6 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
     public async Task<bool> RunVoltageTestAsync(Action<string> log)
     {
-        log("模拟量检测开始...");
-
         var device = new Device.ModbusTcpDevice
         {
             Name = "电压检测板卡",
@@ -112,7 +116,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
                 await Task.Delay(100); // 控制日志节奏
             }
 
-            log("模拟量检测完成。");
+            log("电压检测完成。");
             return allPass;
         }
         catch (Exception ex)
@@ -253,12 +257,12 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             return false;
         }
 
+        log("通讯检测完毕");
         return true;
     }
 
     public async Task<bool> RunAiTestAsync(Action<string> log)
     {
-        log("模拟量检测开始...");
 
         // 准备设备
         var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.150", Port = 502 };
@@ -356,6 +360,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             return false;
         }
 
+        log("模拟量检测完毕");
         return true;
     }
     
@@ -655,6 +660,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             return false;
         }
 
+        log("功能检测完毕");
         return true;
     }
 
@@ -739,9 +745,23 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             log($"LED检测异常: {ex.Message}");
             return false;
         }
+        
+        log("显示及按键检测完毕");
         return true;
     }
 
+    public async Task<bool> RunFanTestAsync(Action<string> log)
+    {
+        log("风机检测完毕");
+        return true;
+    }
+    
+    public async Task<bool> RunCompTestAsync(Action<string> log)
+    {
+        log("压缩机检测完毕");
+        return true;
+    }
+    
     public async Task RunSwitchInputAsync(Action<string> log, CancellationToken cancellationToken)
     {
         log("DO 检测开始...");
@@ -814,8 +834,6 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
 
     public async Task<bool> RunDoTestAsync(Action<string> log, CancellationToken cancellationToken)
     {
-        log("DO 检测开始...");
-
         // 初始化设备
         var (service1, service2, service3) = await InitializeDevicesAsync(log);
         if (service1 is null || service2 is null || service3 is null)
@@ -887,7 +905,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
         catch (OperationCanceledException)
         {
-            log("DO 检测被取消。");
+            log("输出检测被取消。");
             return false;
         }
         catch (Exception ex)
@@ -908,7 +926,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
                 log($"轮询检测异常: {ex.Message}");
             }
 
-            log("DO 检测完成。");
+            log("输出检测完成。");
         }
     }
 

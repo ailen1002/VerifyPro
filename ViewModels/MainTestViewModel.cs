@@ -55,6 +55,9 @@ public class MainTestViewModel : ReactiveObject
         AiTestCommand = ReactiveCommand.CreateFromTask(AiTestAsync);
         DiTestCommand = ReactiveCommand.CreateFromTask(DiTestAsync);
         DoTestCommand = ReactiveCommand.CreateFromTask(DoTestAsync);
+        LedTestCommand = ReactiveCommand.CreateFromTask(LedTestAsync);
+        FanTestCommand = ReactiveCommand.CreateFromTask(FanTestAsync);
+        CompTestCommand = ReactiveCommand.CreateFromTask(CompTestAsync);
         ExportResultCommand = ReactiveCommand.Create(ExportResults);
 
         // 监听服务中的状态变化
@@ -111,6 +114,9 @@ public class MainTestViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> AiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> DiTestCommand { get; }
     public ReactiveCommand<Unit, Unit> DoTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> LedTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> FanTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> CompTestCommand { get; }
     public ReactiveCommand<Unit, Unit> ExportResultCommand { get; }
     
     private async Task StartTestAsync()
@@ -131,7 +137,7 @@ public class MainTestViewModel : ReactiveObject
     {
         if (!CanRunTest("Voltage")) return;
 
-        AppendLog("开始AI检测...");
+        AppendLog("开始电压检测...");
 
         _stateService.StartTest("Voltage");
 
@@ -155,9 +161,9 @@ public class MainTestViewModel : ReactiveObject
 
     private async Task AiTestAsync()
     {
-        if (!CanRunTest("Voltage")) return;
+        if (!CanRunTest("AI")) return;
         
-        AppendLog("开始AI检测...\n");
+        AppendLog("开始模拟量检测...\n");
         
         _stateService.StartTest("AI");
         
@@ -170,7 +176,7 @@ public class MainTestViewModel : ReactiveObject
     {
         if (!CanRunTest("DI")) return;
         
-        AppendLog("开始DI检测...\n");
+        AppendLog("开始功能检测...\n");
         
         _stateService.StartTest("DI");
         
@@ -183,7 +189,7 @@ public class MainTestViewModel : ReactiveObject
     {
         if (!CanRunTest("DO")) return;
         
-        DetectLog += "开始DO检测...\n";
+        DetectLog += "开始输出检测...\n";
 
         // 取消上次检测（如果有）
         _doTestCts?.Cancel();
@@ -199,12 +205,51 @@ public class MainTestViewModel : ReactiveObject
         }
         catch (OperationCanceledException)
         {
-            DetectLog += "DO检测已取消\n";
+            DetectLog += "输出检测已取消\n";
         }
         catch (Exception ex)
         {
-            DetectLog += $"DO检测异常: {ex.Message}\n";
+            DetectLog += $"输出检测异常: {ex.Message}\n";
         }
+    }
+
+    private async Task LedTestAsync()
+    {
+        if (!CanRunTest("LED")) return;
+        
+        AppendLog("开始显示及按键检测...\n");
+        
+        _stateService.StartTest("LED");
+        
+        var result = await _detectionService.RunLedTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("LED", result);
+    }
+
+    private async Task FanTestAsync()
+    {
+        if (!CanRunTest("FAN")) return;
+        
+        AppendLog("开始风机检测...\n");
+        
+        _stateService.StartTest("FAN");
+        
+        var result = await _detectionService.RunFanTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("FAN", result);
+    }
+    
+    private async Task CompTestAsync()
+    {
+        if (!CanRunTest("COMP")) return;
+        
+        AppendLog("开始压缩机检测...\n");
+        
+        _stateService.StartTest("COMP");
+        
+        var result = await _detectionService.RunCompTestAsync(AppendLog);
+        
+        _stateService.ReportTestResult("COMP", result);
     }
     
     private void InitializeProductKey()
