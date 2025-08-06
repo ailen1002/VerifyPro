@@ -851,6 +851,103 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     
     public async Task<bool> RunCompTestAsync(Action<string> log)
     {
+        var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        
+        IModbusRtuClient? service1 = null;
+        ITestDeviceService? service2 = null;
+        
+        try
+        {
+            service1 = await commManager.GetOrConnectModbusRtuDeviceAsync(device1);
+            service2 = await commManager.GetOrConnectTestDeviceAsync(device2);
+
+            if (service1 == null)
+            {
+                log("Modbus 设备连接失败");
+                return false;
+            }
+
+            if (service2 == null)
+            {
+                log("Test 设备连接失败");
+                return false;
+            }
+
+            log("Modbus Test 设备连接成功");
+        }
+        catch (Exception ex)
+        {
+            log($"连接设备异常: {ex.Message}");
+            return false;
+        }
+
+        try
+        {
+            var modbusRtuController = new ModbusRtuController(service1);
+
+            await modbusRtuController.Forward.Off();
+            
+            await Task.Delay(1000);
+
+            await modbusRtuController.CapacitorDischargeC.On();
+
+            await Task.Delay(1000);
+
+            await modbusRtuController.CapacitorDischargeC.Off();
+
+            await Task.Delay(1000);
+
+            await modbusRtuController.Forward.On();
+            
+            var ready = await WaitForDeviceReadyAsync(service2,_config.SYSTEM_STOP_TxData,15,10000,1000,"系统停止", log);
+
+            if (!ready)
+            {
+                log?.Invoke("设备未准备好，超时退出");
+                return false;
+            }
+            
+            if (!await ExecuteCommandAsync(service2, _config.SYSTEM_STOP_TxData, 15, "系统停止命令", log))
+                return false;
+
+            await Task.Delay(1000);
+            
+            if (!await ExecuteCommandAsync(service2, _config.COMP_TEST_MODE, 16, "测试模式", log))
+                return false;
+            
+            await Task.Delay(1000);
+            
+            if (!await ExecuteCommandAsync(service2, _config.DC_FAN1_Speed3_TxData, 16, "风机3速运行", log))
+                return false;
+            
+            await Task.Delay(1000);
+            
+            if (!await ExecuteCommandAsync(service2, _config.COMP_ON_TxData, 16, "压缩机运行", log))
+                return false;
+            
+            await Task.Delay(1000);
+
+            var frequency =await WaitForCompFrequencyReadyAsync(service2, _config.COMP_ON_TxData, _config.DC_COMP_HzL,
+                _config.DC_COMP_HzH,1, 18, 15000, 1000, "压缩机运行反馈", log);
+            
+            if (!frequency)
+            {
+                log?.Invoke("压缩机未在规定时间内达到目标转速。");
+                return false;
+            }
+            
+            await Task.Delay(1000);
+            
+            if (!await ExecuteCommandAsync(service2, _config.COMP_OFF_TxData, 16, "压缩机停止", log))
+                return false;
+        }
+        catch (Exception ex)
+        {
+            log($"压缩机检测异常: {ex.Message}");
+            return false;
+        }
+        
         log("压缩机检测完毕");
         return true;
     }
@@ -1451,6 +1548,40 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
                 if (number == 2)
                     log($"风机2目标转速：{fan2Target}；允许偏差{tolerance}，实际转速：{fan2Actual}");
 
+                return true;
+            }
+
+            await Task.Delay(pollingIntervalMs);
+        }
+
+        return false;
+    }
+
+    private static async Task<bool> WaitForCompFrequencyReadyAsync(
+        ITestDeviceService service,
+        string txData,
+        string hzLow,
+        string hzHigh,
+        int number,
+        int expectedLength,
+        int timeoutMs,
+        int pollingIntervalMs,
+        string commandName,
+        Action<string>? log = null)
+    {
+        var start = Environment.TickCount;
+        var upperLimit = Convert.ToInt16(hzLow);
+        var lowerLimit = Convert.ToInt16(hzHigh);
+        while (Environment.TickCount - start < timeoutMs)
+        {
+            var command = BuildCommandWithChecksum(txData);
+            var result = await service.SetTxCommand(command, expectedLength, commandName);
+
+            var compFrequency = result.Response[16];
+            
+            if (compFrequency >= lowerLimit && compFrequency <= upperLimit)
+            {
+                log?.Invoke($"压缩机频率：{compFrequency}；上限：{upperLimit}；下限：{lowerLimit}");
                 return true;
             }
 
