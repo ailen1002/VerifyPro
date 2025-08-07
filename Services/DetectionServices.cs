@@ -825,14 +825,24 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             await Task.Delay(1000);
 
-            var speed = await WaitForFanSpeedReadyAsync(service2, _config.DC_FAN_CHECK_TxData,
-                _config.DC_FAN_Rotation_Tolerance, 2, 24, 10000, 1000, "风机运行反馈", log);
+            var speed = await WaitForFanSpeedReadyAsync(service2, _config.DC_FAN_CHECK_TxData, 2, 24, 10000, 1000,
+                "风机运行反馈", log);
             
             if (!speed)
             {
                 log?.Invoke("风机未在规定时间内达到目标转速。");
                 return false;
             }
+            
+            await Task.Delay(1000);
+
+            if (!await HicTripCheckCommand(service2, _config.CR_HIC_COMMUNICATION_CHECK_TxData, 97, "警报代码检查", log))
+                return false;
+
+            await Task.Delay(1000);
+            
+            if (!await CurrentCheckCommand(service2, _config.CR_HIC_COMMUNICATION_CHECK_TxData, 97, "电流检测", log))
+                return false;
             
             await Task.Delay(1000);
             
@@ -928,8 +938,8 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             await Task.Delay(1000);
 
-            var frequency =await WaitForCompFrequencyReadyAsync(service2, _config.COMP_ON_TxData, _config.DC_COMP_HzL,
-                _config.DC_COMP_HzH,1, 18, 15000, 1000, "压缩机运行反馈", log);
+            var frequency =await WaitForCompFrequencyReadyAsync(service2, _config.DC_COMP_CHECK_TxData,1,
+                18, 15000, 1000, "压缩机运行反馈", log);
             
             if (!frequency)
             {
@@ -1509,19 +1519,18 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         return false;
     }
     
-    private static async Task<bool> WaitForFanSpeedReadyAsync(
+    private async Task<bool> WaitForFanSpeedReadyAsync(
         ITestDeviceService service,
         string txData,
-        string tolerance,
         int number,
         int expectedLength,
         int timeoutMs,
         int pollingIntervalMs,
         string commandName,
-        Action<string>? log = null)
+        Action<string>log)
     {
         var start = Environment.TickCount;
-        var tol = Convert.ToInt16(tolerance);
+        var tol = Convert.ToInt16(_config.DC_FAN_Rotation_Tolerance);
         while (Environment.TickCount - start < timeoutMs)
         {
             var command = BuildCommandWithChecksum(txData);
@@ -1544,9 +1553,10 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             if (allOk)
             {
-                log($"风机1目标转速：{fan1Target}；允许偏差{tolerance}，实际转速：{fan1Actual}");
+                log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+                log($"风机1目标转速：{fan1Target}；允许偏差{tol}，实际转速：{fan1Actual}");
                 if (number == 2)
-                    log($"风机2目标转速：{fan2Target}；允许偏差{tolerance}，实际转速：{fan2Actual}");
+                    log($"风机2目标转速：{fan2Target}；允许偏差{tol}，实际转速：{fan2Actual}");
 
                 return true;
             }
@@ -1557,21 +1567,19 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         return false;
     }
 
-    private static async Task<bool> WaitForCompFrequencyReadyAsync(
+    private async Task<bool> WaitForCompFrequencyReadyAsync(
         ITestDeviceService service,
         string txData,
-        string hzLow,
-        string hzHigh,
         int number,
         int expectedLength,
         int timeoutMs,
         int pollingIntervalMs,
         string commandName,
-        Action<string>? log = null)
+        Action<string> log)
     {
         var start = Environment.TickCount;
-        var upperLimit = Convert.ToInt16(hzLow);
-        var lowerLimit = Convert.ToInt16(hzHigh);
+        var upperLimit = Convert.ToInt16(_config.DC_COMP_HzL);
+        var lowerLimit = Convert.ToInt16(_config.DC_COMP_HzH);
         while (Environment.TickCount - start < timeoutMs)
         {
             var command = BuildCommandWithChecksum(txData);
@@ -1581,7 +1589,8 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             if (compFrequency >= lowerLimit && compFrequency <= upperLimit)
             {
-                log?.Invoke($"压缩机频率：{compFrequency}；上限：{upperLimit}；下限：{lowerLimit}");
+                log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+                log($"压缩机频率：{compFrequency}；上限：{upperLimit}；下限：{lowerLimit}");
                 return true;
             }
 
@@ -1589,5 +1598,126 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         }
 
         return false;
+    }
+
+    private static async Task<bool> HicTripCheckCommand(ITestDeviceService service,string txData,int expectedLength,string commandName,Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+
+        var trip = result.Response[53];
+
+        if (trip != 0)
+        {
+            log($"警报代码:{trip:X2}，预期(0x00)");
+            return false;
+        }
+
+        log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+        log($"警报代码:{trip:X2}，预期(0x00)");
+        log($"{result.CommandName}发送成功。");
+        return true;
+    }
+
+    private async Task<bool> CurrentCheckCommand(ITestDeviceService service,string txData,int expectedLength,string commandName,Action<string> log)
+    {
+        var command = BuildCommandWithChecksum(txData);
+        log($"Tx: {BitConverter.ToString(command).Replace("-", " ")}");
+
+        var result = await service.SetTxCommand(command, expectedLength, commandName);
+        log($"Rx: {BitConverter.ToString(result.Response).Replace("-", " ")}");
+        
+        if (!result.Success)
+        {
+            log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+            log($"{result.CommandName}发送失败");
+            return false;
+        }
+
+        var lowerLimit = Convert.ToDouble(_config.CT_NO_LOAD_L);
+        var upperLimit = Convert.ToDouble(_config.CT_NO_LOAD_H);
+
+        var fanLowerLimit = Convert.ToDouble(_config.FAN_SHUNT_LOAD_L);
+        var fanUpperLimit = Convert.ToDouble(_config.FAN_SHUNT_LOAD_H);
+        
+        var primaryCurrentL1 = result.Response[56] * 256 + result.Response[57];
+        var primaryCurrentL2 = result.Response[58] * 256 + result.Response[59];
+        var primaryCurrentL3 = result.Response[60] * 256 + result.Response[61];
+        var secondaryCurrent = result.Response[62] * 256 + result.Response[63];
+        var fan1Current = result.Response[68];
+        var fan2Current = result.Response[70];
+        var compCurrentR = result.Response[78] * 256 + result.Response[79];
+        var compCurrentS = result.Response[80] * 256 + result.Response[81];
+        var compCurrentT = result.Response[82] * 256 + result.Response[84];
+        
+        if (primaryCurrentL1 >= upperLimit || primaryCurrentL1 <= lowerLimit)
+        {
+            log($"INV一次侧电流L1(空载):{primaryCurrentL1}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (primaryCurrentL2 >= upperLimit || primaryCurrentL2 <= lowerLimit)
+        {
+            log($"INV一次侧电流L2(空载):{primaryCurrentL2}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (primaryCurrentL3 >= upperLimit || primaryCurrentL3 <= lowerLimit)
+        {
+            log($"INV一次侧电流L3(空载):{primaryCurrentL3}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (secondaryCurrent >= upperLimit || secondaryCurrent <= lowerLimit)
+        {
+            log($"INV二次侧电流(空载):{secondaryCurrent}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (fan1Current >= fanUpperLimit || fan1Current <= fanLowerLimit)
+        {
+            log($"风机电流:{fan1Current}，预期(下限:{fanLowerLimit}；上限:{fanUpperLimit}");
+            return false;
+        }
+
+        if (compCurrentR >= upperLimit || compCurrentR <= lowerLimit)
+        {
+            log($"Comp R项电流(空载):{compCurrentR}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (compCurrentS >= upperLimit || compCurrentS <= lowerLimit)
+        {
+            log($"Comp S项电流(空载):{compCurrentS}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        if (compCurrentT >= upperLimit || compCurrentT <= lowerLimit)
+        {
+            log($"Comp T项电流(空载):{compCurrentT}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            return false;
+        }
+        
+        log($"接收:{result.ActualLength}字节，预期:{expectedLength}字节。");
+        log($"INV一次侧电流L1(空载):{primaryCurrentL1}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"INV一次侧电流L2(空载):{primaryCurrentL2}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"INV一次侧电流L3(空载):{primaryCurrentL3}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"INV二次侧电流(空载):{secondaryCurrent}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"风机电流:{fan1Current}，预期(下限:{fanLowerLimit}；上限:{fanUpperLimit}");
+        log($"Comp R项电流(空载):{compCurrentR}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"Comp S项电流(空载):{compCurrentS}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"Comp T项电流(空载):{compCurrentT}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"{result.CommandName}发送成功。");
+        return true;
     }
 }
