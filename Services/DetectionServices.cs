@@ -65,7 +65,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         var device = new Device.ModbusTcpDevice
         {
             Name = "电压检测板卡",
-            Ip = "192.168.1.155",
+            Ip = "192.168.1.103",
             Port = 502
         };
 
@@ -130,7 +130,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         // 准备设备
         var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
 
         // 连接设备
         IModbusRtuClient? service1 = null;
@@ -265,8 +265,8 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
 
         // 准备设备
-        var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.150", Port = 502 };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device1 = new Device.ModbusTcpDevice { Name = "检测板卡", Ip = "192.168.1.104", Port = 502 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
 
         // 连接设备
         IModbusTcpClient? service1 = null;
@@ -518,10 +518,10 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         var device = new Device.ModbusTcpDevice
         {
             Name = "继电器输出板卡",
-            Ip = "192.168.1.153",
+            Ip = "192.168.1.106",
             Port = 502
         };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
         
         IModbusTcpClient? service;
         ITestDeviceService? service2 = null;
@@ -668,7 +668,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         // 准备设备
         var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
 
         // 连接设备
         IModbusRtuClient? service1 = null;
@@ -753,7 +753,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     public async Task<bool> RunFanTestAsync(Action<string> log)
     {
         var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
 
         // 连接设备
         IModbusRtuClient? service1 = null;
@@ -862,7 +862,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     public async Task<bool> RunCompTestAsync(Action<string> log)
     {
         var device1 = new Device.ModbusRtuDevice { Name = "控制器",  SerialPort= "COM3", Baud = 19200, SlaveId = 1 };
-        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.156", Port = 9000 };
+        var device2 = new Device.TestDevice { Name = "测试设备", Ip = "192.168.1.100", Port = 9000 };
         
         IModbusRtuClient? service1 = null;
         ITestDeviceService? service2 = null;
@@ -969,7 +969,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         var device = new Device.ModbusTcpDevice
         {
             Name = "开关量输入板卡",
-            Ip = "192.168.1.162",
+            Ip = "192.168.1.105",
             Port = 502
         };
 
@@ -1133,9 +1133,9 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     // 初始化设备方法
     private async Task<(IModbusTcpClient? s1, IModbusTcpClient? s2, IModbusTcpClient? s3)> InitializeDevicesAsync(Action<string> log)
     {
-        var device1 = new Device.ModbusTcpDevice { Name = "AC输入板卡", Ip = "192.168.1.160", Port = 502 };
-        var device2 = new Device.ModbusTcpDevice { Name = "DC输入板卡", Ip = "192.168.1.157", Port = 502 };
-        var device3 = new Device.ModbusTcpDevice { Name = "继电器输出板卡", Ip = "192.168.1.153", Port = 502 };
+        var device1 = new Device.ModbusTcpDevice { Name = "AC输入板卡", Ip = "192.168.1.101", Port = 502 };
+        var device2 = new Device.ModbusTcpDevice { Name = "DC输入板卡", Ip = "192.168.1.102", Port = 502 };
+        var device3 = new Device.ModbusTcpDevice { Name = "继电器输出板卡", Ip = "192.168.1.106", Port = 502 };
 
         try
         {
