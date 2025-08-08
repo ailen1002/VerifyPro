@@ -823,14 +823,15 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             if (!await ExecuteCommandAsync(service2, _config.DC_FAN1_Speed3_TxData, 16, "风机3速运行", log))
                 return false;
             
-            await Task.Delay(1000);
+            await Task.Delay(5000);
 
-            var speed = await WaitForFanSpeedReadyAsync(service2, _config.DC_FAN_CHECK_TxData, 2, 24, 10000, 1000,
+            var speed = await WaitForFanSpeedReadyAsync(service2, _config.DC_FAN_CHECK_TxData, 2, 24, 35000, 1000,
                 "风机运行反馈", log);
             
             if (!speed)
             {
-                log?.Invoke("风机未在规定时间内达到目标转速。");
+                log("风机未在规定时间内达到目标转速。");
+                await ExecuteCommandAsync(service2, _config.DC_FAN1_OFF_TxData, 16, "风机停止", log);
                 return false;
             }
             
@@ -852,6 +853,7 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         catch (Exception ex)
         {
             log($"风机检测异常: {ex.Message}");
+            await ExecuteCommandAsync(service2, _config.DC_FAN1_OFF_TxData, 16, "风机停止", log);
             return false;
         }
         
@@ -1531,6 +1533,10 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
     {
         var start = Environment.TickCount;
         var tol = Convert.ToInt16(_config.DC_FAN_Rotation_Tolerance);
+        var stableCount = 0;
+        const int requiredStableCount = 5; 
+        var lastLogTime = 0;
+        const int logIntervalMs = 5000; 
         while (Environment.TickCount - start < timeoutMs)
         {
             var command = BuildCommandWithChecksum(txData);
@@ -1553,12 +1559,28 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
             
             if (allOk)
             {
-                log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+                stableCount++;
+                if (stableCount >= requiredStableCount)
+                {
+                    log($"接收：{result.ActualLength}字节，预期：{expectedLength}字节。");
+                    log($"风机1目标转速：{fan1Target}；允许偏差{tol}，实际转速：{fan1Actual}");
+                    if (number == 2)
+                        log($"风机2目标转速：{fan2Target}；允许偏差{tol}，实际转速：{fan2Actual}");
+                    return true;
+                }
+                await Task.Delay(pollingIntervalMs);
+            }
+            else
+            {
+                stableCount = 0;
+            }
+            
+            if (Environment.TickCount - lastLogTime >= logIntervalMs)
+            {
                 log($"风机1目标转速：{fan1Target}；允许偏差{tol}，实际转速：{fan1Actual}");
                 if (number == 2)
                     log($"风机2目标转速：{fan2Target}；允许偏差{tol}，实际转速：{fan2Actual}");
-
-                return true;
+                lastLogTime = Environment.TickCount;
             }
 
             await Task.Delay(pollingIntervalMs);
@@ -1650,73 +1672,80 @@ public class DetectionService(DeviceCommManager commManager, ConfigFileViewModel
         var fanLowerLimit = Convert.ToDouble(_config.FAN_SHUNT_LOAD_L);
         var fanUpperLimit = Convert.ToDouble(_config.FAN_SHUNT_LOAD_H);
         
-        var primaryCurrentL1 = result.Response[56] * 256 + result.Response[57];
-        var primaryCurrentL2 = result.Response[58] * 256 + result.Response[59];
-        var primaryCurrentL3 = result.Response[60] * 256 + result.Response[61];
-        var secondaryCurrent = result.Response[62] * 256 + result.Response[63];
-        var fan1Current = result.Response[68];
-        var fan2Current = result.Response[70];
-        var compCurrentR = result.Response[78] * 256 + result.Response[79];
-        var compCurrentS = result.Response[80] * 256 + result.Response[81];
-        var compCurrentT = result.Response[82] * 256 + result.Response[84];
+        var primaryCurrentL1 = Convert.ToDouble((result.Response[56] * 256 + result.Response[57]) / 1000);
+        var primaryCurrentL2 = Convert.ToDouble((result.Response[58] * 256 + result.Response[59]) / 1000);
+        var primaryCurrentL3 = Convert.ToDouble((result.Response[60] * 256 + result.Response[61]) / 1000);
+        var secondaryCurrent = Convert.ToDouble((result.Response[62] * 256 + result.Response[63]) / 1000);
+        var fan1Current = Convert.ToDouble((result.Response[68] * 256 + result.Response[69]) / 1000);
+        var fan2Current = Convert.ToDouble((result.Response[70] * 256 + result.Response[71]) / 1000);
+        var compCurrentR = Convert.ToDouble((result.Response[78] * 256 + result.Response[79]) / 1000);
+        var compCurrentS = Convert.ToDouble((result.Response[80] * 256 + result.Response[81]) / 1000);
+        var compCurrentT = Convert.ToDouble((result.Response[82] * 256 + result.Response[84]) / 1000);
         
-        if (primaryCurrentL1 >= upperLimit || primaryCurrentL1 <= lowerLimit)
+        if (primaryCurrentL1 > upperLimit || primaryCurrentL1 < lowerLimit)
         {
-            log($"INV一次侧电流L1(空载):{primaryCurrentL1}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"INV一次侧电流L1(空载):{primaryCurrentL1:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (primaryCurrentL2 >= upperLimit || primaryCurrentL2 <= lowerLimit)
+        if (primaryCurrentL2 > upperLimit || primaryCurrentL2 < lowerLimit)
         {
-            log($"INV一次侧电流L2(空载):{primaryCurrentL2}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"INV一次侧电流L2(空载):{primaryCurrentL2:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (primaryCurrentL3 >= upperLimit || primaryCurrentL3 <= lowerLimit)
+        if (primaryCurrentL3 > upperLimit || primaryCurrentL3 < lowerLimit)
         {
-            log($"INV一次侧电流L3(空载):{primaryCurrentL3}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"INV一次侧电流L3(空载):{primaryCurrentL3:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (secondaryCurrent >= upperLimit || secondaryCurrent <= lowerLimit)
+        if (secondaryCurrent > upperLimit || secondaryCurrent < lowerLimit)
         {
-            log($"INV二次侧电流(空载):{secondaryCurrent}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"INV二次侧电流(空载):{secondaryCurrent:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (fan1Current >= fanUpperLimit || fan1Current <= fanLowerLimit)
+        if (fan1Current > fanUpperLimit || fan1Current < fanLowerLimit)
         {
-            log($"风机电流:{fan1Current}，预期(下限:{fanLowerLimit}；上限:{fanUpperLimit}");
+            log($"风机1电流:{fan1Current:F3}，预期(下限:{fanLowerLimit:F3}；上限:{fanUpperLimit:F3})");
+            return false;
+        }
+        
+        if (fan1Current > fanUpperLimit || fan1Current < fanLowerLimit)
+        {
+            log($"风机2电流:{fan2Current:F3}，预期(下限:{fanLowerLimit:F3}；上限:{fanUpperLimit:F3})");
             return false;
         }
 
-        if (compCurrentR >= upperLimit || compCurrentR <= lowerLimit)
+        if (compCurrentR > upperLimit || compCurrentR < lowerLimit)
         {
-            log($"Comp R项电流(空载):{compCurrentR}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"Comp R项电流(空载):{compCurrentR:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (compCurrentS >= upperLimit || compCurrentS <= lowerLimit)
+        if (compCurrentS > upperLimit || compCurrentS < lowerLimit)
         {
-            log($"Comp S项电流(空载):{compCurrentS}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"Comp S项电流(空载):{compCurrentS:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
-        if (compCurrentT >= upperLimit || compCurrentT <= lowerLimit)
+        if (compCurrentT > upperLimit || compCurrentT < lowerLimit)
         {
-            log($"Comp T项电流(空载):{compCurrentT}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+            log($"Comp T项电流(空载):{compCurrentT:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
             return false;
         }
         
         log($"接收:{result.ActualLength}字节，预期:{expectedLength}字节。");
-        log($"INV一次侧电流L1(空载):{primaryCurrentL1}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"INV一次侧电流L2(空载):{primaryCurrentL2}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"INV一次侧电流L3(空载):{primaryCurrentL3}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"INV二次侧电流(空载):{secondaryCurrent}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"风机电流:{fan1Current}，预期(下限:{fanLowerLimit}；上限:{fanUpperLimit}");
-        log($"Comp R项电流(空载):{compCurrentR}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"Comp S项电流(空载):{compCurrentS}，预期(下限:{lowerLimit}；上限:{upperLimit}");
-        log($"Comp T项电流(空载):{compCurrentT}，预期(下限:{lowerLimit}；上限:{upperLimit}");
+        log($"INV一次侧电流L1(空载):{primaryCurrentL1:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"INV一次侧电流L2(空载):{primaryCurrentL2:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"INV一次侧电流L3(空载):{primaryCurrentL3:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"INV二次侧电流(空载):{secondaryCurrent:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"风机1电流(风机运行):{fan1Current:F3}，预期(下限:{fanLowerLimit:F3}；上限:{fanUpperLimit:F3})");
+        log($"风机2电流(风机运行):{fan1Current:F3}，预期(下限:{fanLowerLimit:F3}；上限:{fanUpperLimit:F3})");
+        log($"Comp R项电流(空载):{compCurrentR:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"Comp S项电流(空载):{compCurrentS:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
+        log($"Comp T项电流(空载):{compCurrentT:F3}，预期(下限:{lowerLimit:F3}；上限:{upperLimit:F3})");
         log($"{result.CommandName}发送成功。");
         return true;
     }
