@@ -39,7 +39,7 @@ public class SwitchInputMonitorService(
         var device = new Device.ModbusTcpDevice
         {
             Name = "开关量输入板卡",
-            Ip = "192.168.1.162",
+            Ip = "192.168.1.105",
             Port = 502
         };
 
